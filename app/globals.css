@@ -1,26 +1,451 @@
 @import "tailwindcss";
+/* prose: typography for post bodies written in the rich-text editor. */
+@plugin "@tailwindcss/typography";
 
+/* `dark:` follows the console's theme toggle (data-theme on <html>), not the OS setting. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+ * Kavery design tokens — three layers. See design-system/kavery/MASTER.md.
+ *   1. Primitives  raw values sampled from the KSC and KEDA crests
+ *   2. Semantic    what a colour is FOR; swapped per theme scope
+ *   3. Component   per-component knobs built from the semantic layer
+ * Components only ever read layers 2 and 3.
+ */
+
+/* ---------------------------------------------------------- 1. primitives */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --red-400: #ff453a;
+  --red-500: #e00000; /* KSC crest red */
+  --red-600: #c00000;
+  --red-700: #8e0000;
+  --yellow-400: #fff200; /* KSC crest yellow */
+  --yellow-500: #e6d200;
+  --blue-400: #5b93f0;
+  --blue-600: #003c9c; /* the batsman on the KSC crest */
+  --blue-700: #003084; /* KEDA cap blue */
+  --blue-900: #071b45;
+  --blue-50: #eaf0fb;
+  --cream-200: #fbf1b0; /* KEDA lettering */
+  --ink-950: #0b0909;
+  --ink-900: #141011;
+  --ink-800: #1e181a;
+  --ink-700: #2c2426;
+  --ink-500: #6f6467;
+  --ink-300: #bdb3b5;
+  --ink-100: #ede8e8;
+  --paper-50: #fcfaf4;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --cut: 8deg; /* the crest's diagonal, reused for buttons and section edges */
+}
+
+/* ------------------------------------------------------------ 2. semantic */
+/* Night: the public KSC site. Floodlit ground, crest colours as light. */
+:root,
+.theme-night {
+  --bg: var(--ink-950);
+  --surface: var(--ink-900);
+  --surface-2: var(--ink-800);
+  --fg: #f8f4ef;
+  --muted: var(--ink-300);
+  --line: rgb(255 255 255 / 0.12);
+  --brand: var(--red-500);
+  --brand-text: var(--red-400); /* red that still passes 4.5:1 as small text on ink */
+  --on-brand: #fff;
+  --accent: var(--yellow-400);
+  --on-accent: var(--ink-950);
+  --focus: var(--yellow-400);
+}
+
+/* KEDA: daylight and paper. Blue leads, cream accents, red only as a thread back to the club. */
+.theme-keda {
+  --bg: var(--paper-50);
+  --surface: #fff;
+  --surface-2: var(--blue-50);
+  --fg: var(--blue-900);
+  --muted: #4a5878;
+  --line: rgb(7 27 69 / 0.14);
+  --brand: var(--blue-700);
+  --brand-text: var(--blue-700);
+  --on-brand: #fff;
+  --accent: var(--cream-200);
+  --on-accent: var(--blue-900);
+  --focus: var(--blue-600);
+}
+
+/* Console: a neutral, monochrome shell (ink does the work a brand colour would),
+   with the crest's red and yellow kept for data and status. Light and dark. */
+.theme-console {
+  --bg: #f6f6f7;
+  --surface: #fff;
+  --surface-2: #f1f1f3;
+  --fg: #111113;
+  --muted: #6b6b74;
+  --line: #e6e6e9;
+  --brand: #111113;
+  --brand-text: var(--red-600);
+  --on-brand: #fff;
+  --accent: var(--yellow-400);
+  --on-accent: var(--ink-950);
+  --focus: #111113;
+  --ok: #15803d;
+  --warn: #b45309;
+  --danger: #b42318;
+  --on-danger: #fff;
+  --on-warn: #fff;
+  /* chart series, in order */
+  --data-1: #111113;
+  --data-2: var(--red-500);
+  --data-3: #d4d4d8;
+  --data-4: var(--blue-600);
+  --card-radius: 14px;
+  --field-radius: 9px;
+  color-scheme: light;
+}
+[data-theme="dark"] .theme-console {
+  --bg: #0e0e10;
+  --surface: #17171a;
+  --surface-2: #222226;
+  --fg: #f4f4f5;
+  --muted: #a1a1aa;
+  --line: #2b2b30;
+  --brand: #f4f4f5;
+  --brand-text: var(--red-400);
+  --on-brand: #111113;
+  --focus: #f4f4f5;
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  --danger: #f87171;
+  --on-danger: #111113;
+  --on-warn: #111113;
+  --data-1: #f4f4f5;
+  --data-2: var(--red-400);
+  --data-3: #3f3f46;
+  --data-4: var(--blue-400);
+  color-scheme: dark;
+}
+
+/* ----------------------------------------------------------- 3. component */
+:root {
+  --btn-h: 3rem;
+  --btn-px: 1.5rem;
+  --card-radius: 6px;
+  --field-radius: 6px;
+  --nav-h: 4.5rem;
+  --gutter: clamp(1rem, 4vw, 3rem);
+  --section-y: clamp(4.5rem, 10vw, 9rem);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg);
+  /* shadcn-compatible names, so shadcn components drop in unchanged */
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--muted);
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--fg);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--fg);
+  --color-primary: var(--brand);
+  --color-primary-foreground: var(--on-brand);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--fg);
+  --color-border: var(--line);
+  --color-input: var(--line);
+  --color-ring: var(--focus);
+  --color-destructive: var(--danger);
+  --color-on-danger: var(--on-danger);
+  --color-success: var(--ok);
+  --color-warning: var(--warn);
+  --color-warning-foreground: var(--on-warn);
+  --font-heading: var(--font-sans);
+  --color-data-1: var(--data-1);
+  --color-data-2: var(--data-2);
+  --color-data-3: var(--data-3);
+  --color-data-4: var(--data-4);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-text: var(--brand-text);
+  --color-on-brand: var(--on-brand);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-ksc-red: var(--red-500);
+  --color-ksc-yellow: var(--yellow-400);
+  --color-ksc-blue: var(--blue-600);
+  --color-ink: var(--ink-950);
+  --font-display: var(--font-shoulders), var(--font-anek), "Arial Narrow", sans-serif;
+  --font-sans: var(--font-hanken), var(--font-anek), system-ui, sans-serif;
+  --ease-out: var(--ease-out);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ------------------------------------------------------ console form kit */
+/*
+ * The cricket and KEDA screens are ported from KCSC, which styles every raw
+ * <input>/<select>/<textarea> with `.field` and its label with `.field-label`.
+ * They are defined here once rather than rewriting ~170 call sites.
+ */
+@layer base {
+  /* A bare `border` class takes the theme's hairline colour, as those screens assume. */
+  .theme-console *,
+  .theme-console ::before,
+  .theme-console ::after {
+    border-color: var(--line);
+  }
+  .theme-console :where(h1, h2, h3, h4) {
+    font-weight: 600;
+    letter-spacing: -0.015em;
   }
 }
 
+@layer components {
+  .field {
+    @apply h-11 w-full min-w-0 rounded-[var(--field-radius)] border border-input bg-card px-3.5 text-base text-foreground outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/25 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  textarea.field {
+    @apply h-auto min-h-24 py-2.5;
+  }
+  .field-label {
+    @apply mb-1.5 block text-sm font-medium text-foreground;
+  }
+  /* Stat tile with the crest's yellow rule across the top. */
+  .card-gold-rule {
+    @apply relative overflow-hidden rounded-[var(--card-radius)] border border-border bg-card;
+  }
+  .card-gold-rule::before {
+    content: "";
+    @apply absolute inset-x-0 top-0 h-0.5 bg-accent;
+  }
+}
+
+/* Numeric columns in registers and mark sheets must not jitter between renders. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* -------------------------------------------------------------------- base */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: var(--nav-h);
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  overflow-x: clip;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* Display type: condensed, uppercase, tight. */
+.display {
+  font-family: var(--font-display);
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 0.88;
+  letter-spacing: -0.01em;
+}
+
+/* Tamil has no case, taller glyphs and deep vowel signs: set it in Anek Tamil's
+   condensed width with room to breathe, or the descenders clip. */
+:lang(ta) .display {
+  font-family: var(--font-anek), sans-serif;
+  font-variation-settings: "wdth" 78;
+  font-weight: 800;
+  line-height: 1.18;
+  letter-spacing: 0;
+}
+
+.eyebrow {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+:lang(ta) .eyebrow {
+  font-family: var(--font-anek), sans-serif;
+  letter-spacing: 0.02em;
+  font-size: 0.9375rem;
+}
+
+/* Hero lockup: the two lines are sized to end at roughly the same right edge. */
+.hero-line1 {
+  font-size: clamp(5rem, min(21vw, 32svh), 17rem);
+}
+.hero-line2 {
+  font-size: clamp(2.5rem, min(10.5vw, 16svh), 8.5rem);
+}
+:lang(ta) .hero-line1 {
+  font-size: clamp(3.5rem, min(14vw, 22svh), 11rem);
+}
+:lang(ta) .hero-line2 {
+  font-size: clamp(1.75rem, min(5.6vw, 11svh), 5rem);
+}
+
+/* Wide letter-spacing is a Latin small-caps habit; on Tamil it pulls vowel signs away from their consonants. */
+:lang(ta) [class*="tracking-"] {
+  letter-spacing: normal;
+}
+
+/* Section headings. Tamil words are long and unbreakable, so it gets a smaller
+   scale — at the Latin size a single word is wider than a phone. */
+.h-section {
+  font-size: clamp(2.75rem, 7.2vw, 4.75rem);
+}
+:lang(ta) .h-section {
+  font-size: clamp(2rem, 6.6vw, 3.5rem);
+}
+
+/* The cut button: leans on the crest's diagonal. The label is counter-skewed. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--btn-h);
+  padding-inline: var(--btn-px);
+  transform: skewX(calc(var(--cut) * -1));
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.0625rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background-color 200ms var(--ease-out),
+    color 200ms var(--ease-out),
+    translate 200ms var(--ease-out);
+}
+.btn > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  transform: skewX(var(--cut));
+}
+.btn:hover {
+  translate: 0 -2px;
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  translate: none;
+}
+:lang(ta) .btn {
+  font-family: var(--font-anek), sans-serif;
+  font-variation-settings: "wdth" 85;
+  letter-spacing: 0;
+  font-size: 1rem;
+}
+.btn-brand {
+  background: var(--brand);
+  color: var(--on-brand);
+}
+.btn-accent {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.btn-ghost {
+  box-shadow: inset 0 0 0 2px var(--line);
+  color: var(--fg);
+}
+.btn-ghost:hover {
+  box-shadow: inset 0 0 0 2px var(--fg);
+}
+
+.container-x {
+  width: 100%;
+  max-width: 82rem;
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* Panels on the public match pages (components/live). */
+.live-card {
+  border: 1px solid var(--line);
+  border-radius: var(--card-radius);
+  background: var(--surface);
+}
+
+/* Film grain over the night sections, so flat ink reads as a lit surface. */
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.07;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Scroll reveal — see components/site/motion.tsx. Visible unless JS marks it pending. */
+[data-reveal="pending"] {
+  opacity: 0;
+  transform: translateY(28px);
+}
+[data-reveal="in"] {
+  transition:
+    opacity 700ms var(--ease-out) var(--reveal-delay, 0s),
+    transform 700ms var(--ease-out) var(--reveal-delay, 0s);
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+.marquee-track {
+  animation: marquee 32s linear infinite;
+}
+
+@keyframes pulse-live {
+  50% {
+    opacity: 0.35;
+  }
+}
+.live-dot {
+  animation: pulse-live 1.4s ease-in-out infinite;
+}
+
+/* Printing a console page (a report, a register) prints the page, not the app around it. */
+@media print {
+  .theme-console {
+    --bg: #fff;
+    --surface: #fff;
+    --surface-2: #f3f3f3;
+    --fg: #000;
+    --muted: #444;
+    --line: #bbb;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .marquee-track,
+  .live-dot {
+    animation: none;
+  }
+  .btn,
+  .btn:hover {
+    transition: none;
+    translate: none;
+  }
 }

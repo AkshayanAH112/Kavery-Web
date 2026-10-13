@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kavery-sports-club",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // html_handling none: serve /offline.html as-is. The default redirects it to /offline, and a
+  // service worker may not answer a navigation with a redirected response.
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS", "html_handling": "none" },
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "kavery-sports-club" }],
+  // D1 — the whole database. database_id is filled in by `wrangler d1 create kavery-db`;
+  // local dev and `npm run preview` use a local SQLite file and ignore the id.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kavery-db",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  // R2 — every uploaded image and document (gallery, news, member photos, payment slips, crests).
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "kavery-media" }],
+  "vars": { "APP_URL": "http://localhost:3000" },
+  "observability": { "enabled": true }
+}

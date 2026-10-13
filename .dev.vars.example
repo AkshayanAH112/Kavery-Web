@@ -1,0 +1,13 @@
+# Copy to .dev.vars for local development. In production these are Worker secrets:
+#   npx wrangler secret put AUTH_SECRET   (and so on)
+NEXTJS_ENV=development
+AUTH_SECRET=
+# Generate a pair with: npm run vapid
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:you@example.com
+# Shared secret for the yearly promotion job (any long random string)
+CRON_SECRET=
+# Used once by: npm run db:seed
+SEED_ADMIN_EMAIL=
+SEED_ADMIN_PASSWORD=

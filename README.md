@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kavery Sports Club
 
-## Getting Started
+Website, staff console and installable app for Kavery Sports Club, Periyaneelavanai, and its education
+wing, the Kavery Education Development Association (KEDA).
 
-First, run the development server:
+Next.js 16 on Cloudflare Workers · D1 (database) · R2 (files) · Web Push · English and Tamil.
+
+## Run it locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .dev.vars.example .dev.vars   # then fill in the values (see the comments in the file)
+npm run db:migrate               # create the local database
+npm run db:seed                  # create the first administrator from .dev.vars
+npm run dev                      # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Sign in at `/login` with the `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` you put in `.dev.vars`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy to Cloudflare (first time)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npx wrangler login
+npx wrangler d1 create kavery-db          # paste the database_id it prints into wrangler.jsonc
+npx wrangler r2 bucket create kavery-media
+npx wrangler secret put AUTH_SECRET       # a random string, 32+ characters
+npx wrangler secret put VAPID_PUBLIC_KEY
+npx wrangler secret put VAPID_PRIVATE_KEY
+npx wrangler secret put VAPID_SUBJECT     # mailto:someone@the-club
+npm run db:migrate:remote
+npm run db:seed -- --remote
+npm run deploy
+```
 
-## Learn More
+`npm run vapid` prints a fresh push key pair for the three `VAPID_*` values.
 
-To learn more about Next.js, take a look at the following resources:
+## Where things are
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| | |
+|---|---|
+| `docs/PLAN.md` | Analysis of the KCSC project this is ported from, decisions, roadmap |
+| `design-system/kavery/MASTER.md` | Colours, type, motion and component rules |
+| `db/schema.ts` | The whole database |
+| `lib/auth/roles.ts` | Roles and permissions |
+| `CLAUDE.md` | Working notes for anyone (or any agent) changing the code |
