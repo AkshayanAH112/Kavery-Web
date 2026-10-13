@@ -38,8 +38,15 @@ const formatDate = (value?: string) => (value ? new Date(value).toLocaleDateStri
 
 function fontFamily() {
   const root = getComputedStyle(document.documentElement);
-  return `${root.getPropertyValue("--font-hanken") || "system-ui"}, ${root.getPropertyValue("--font-anek") || "sans-serif"}, sans-serif`;
+  return `${root.getPropertyValue("--font-anek") || "sans-serif"}, ${root.getPropertyValue("--font-hanken") || "system-ui"}, sans-serif`;
 }
+
+const memberTypeLabels: Record<string, string> = {
+  playing: "விளையாடும் உறுப்பினர்",
+  non_playing: "விளையாடாத உறுப்பினர்",
+  junior: "இளையோர் உறுப்பினர்",
+  coach: "பயிற்றுநர் / பணியாளர்",
+};
 
 /**
  * The membership card, drawn straight onto a canvas in the crest's colours — no
@@ -56,7 +63,9 @@ async function drawFront(canvas: HTMLCanvasElement, member: CardMember) {
   const [crest, photo] = await Promise.all([
     loadImage("/brand/ksc-crest.png"),
     member.photoUrl ? loadImage(member.photoUrl).catch(() => null) : null,
+    document.fonts.load(`800 40px ${family}`, "காவேரி விளையாட்டுக் கழகம்").catch(() => {}),
     document.fonts.load(`800 40px ${family}`, member.fullName).catch(() => {}),
+    document.fonts.load(`600 20px ${family}`, "பெயர் உறுப்பினர் இலக்கம் தேசிய அடையாள அட்டை").catch(() => {}),
   ]);
 
   ctx.fillStyle = "#FFFFFF";
@@ -74,11 +83,11 @@ async function drawFront(canvas: HTMLCanvasElement, member: CardMember) {
   const crestH = 90 * (crest.height / crest.width);
   ctx.drawImage(crest, 42, 24 + (102 - crestH) / 2, 90, crestH);
   ctx.textBaseline = "alphabetic";
-  ctx.font = `800 44px ${family}`;
-  ctx.fillText("KAVERY SPORTS CLUB", 164, 80);
+  ctx.font = `800 40px ${family}`;
+  ctx.fillText("காவேரி விளையாட்டுக் கழகம்", 164, 80);
   ctx.fillStyle = YELLOW;
-  ctx.font = `600 24px ${family}`;
-  ctx.fillText("Periyaneelavanai · Since 1981 · Membership card", 164, 120);
+  ctx.font = `600 22px ${family}`;
+  ctx.fillText("பெரியநீலாவணை · 1981 முதல் · உறுப்பினர் அடையாள அட்டை", 164, 120);
 
   // Photo
   const px = 48, py = 192, pw = 226, ph = 286;
@@ -97,7 +106,7 @@ async function drawFront(canvas: HTMLCanvasElement, member: CardMember) {
     ctx.fillStyle = "#B4B4BE";
     ctx.font = `800 96px ${family}`;
     ctx.textAlign = "center";
-    ctx.fillText(member.fullName.trim().charAt(0).toUpperCase() || "?", px + pw / 2, py + ph / 2 + 34);
+    ctx.fillText(member.fullName.trim().charAt(0) || "?", px + pw / 2, py + ph / 2 + 34);
     ctx.textAlign = "left";
   }
   ctx.restore();
@@ -107,36 +116,37 @@ async function drawFront(canvas: HTMLCanvasElement, member: CardMember) {
   const width = W - left - 48;
   const label = (text: string, x: number, y: number) => {
     ctx.fillStyle = GREY;
-    ctx.font = `600 20px ${family}`;
+    ctx.font = `700 20px ${family}`;
     ctx.fillText(text, x, y);
   };
-  label("NAME", left, 218);
+  label("பெயர்", left, 218);
   ctx.fillStyle = INK;
   fitText(ctx, member.fullName, family, 800, 48, 26, width);
   ctx.fillText(member.fullName, left, 268, width);
 
-  label("MEMBER ID", left, 326);
+  label("உறுப்பினர் இலக்கம்", left, 326);
   ctx.fillStyle = RED;
   ctx.font = `800 50px ${family}`;
   ctx.fillText(member.memberCode ?? "—", left, 378);
 
-  label("NIC", left, 432);
-  if (member.memberType) label("MEMBER TYPE", left + 300, 432);
+  label("தேசிய அடையாள அட்டை", left, 432);
+  const typeText = member.memberType ? (memberTypeLabels[member.memberType] || member.memberType) : "";
+  if (typeText) label("உறுப்பினர் வகை", left + 300, 432);
   ctx.fillStyle = INK;
   ctx.font = `700 30px ${family}`;
   ctx.fillText(member.nic ?? "—", left, 470);
-  if (member.memberType) {
-    fitText(ctx, member.memberType, family, 700, 30, 20, width - 300);
-    ctx.fillText(member.memberType, left + 300, 470, width - 300);
+  if (typeText) {
+    fitText(ctx, typeText, family, 700, 30, 20, width - 300);
+    ctx.fillText(typeText, left + 300, 470, width - 300);
   }
 
   // Validity
   ctx.fillStyle = INK;
   ctx.fillRect(0, H - 104, W, 104);
   ctx.fillStyle = YELLOW;
-  ctx.font = `600 18px ${family}`;
-  ctx.fillText("VALID FROM", 48, H - 64);
-  ctx.fillText("VALID UNTIL", left, H - 64);
+  ctx.font = `700 18px ${family}`;
+  ctx.fillText("தொடக்கம்", 48, H - 64);
+  ctx.fillText("முடிவு", left, H - 64);
   ctx.fillStyle = "#FFFFFF";
   ctx.font = `700 30px ${family}`;
   ctx.fillText(formatDate(member.validFrom), 48, H - 26);
@@ -162,10 +172,10 @@ async function drawBack(canvas: HTMLCanvasElement, member: CardMember, contact: 
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = INK;
   ctx.font = `700 28px ${family}`;
-  ctx.fillText("This card belongs to Kavery Sports Club.", left, 118, textWidth);
+  ctx.fillText("இவ்வடையாள அட்டை காவேரி விளையாட்டுக் கழகத்திற்குரியது.", left, 118, textWidth);
   ctx.fillStyle = GREY;
-  ctx.font = `500 24px ${family}`;
-  ctx.fillText("It is not transferable. If found, please return it to the club.", left, 158, textWidth);
+  ctx.font = `500 22px ${family}`;
+  ctx.fillText("இது மாற்றத்தக்கதல்ல. தவறவிடப்பட்டால் கழகத்திடம் ஒப்படைக்கவும்.", left, 158, textWidth);
 
   let y = 226;
   for (const line of [contact.address, contact.phone, contact.email].filter(Boolean)) {
@@ -191,7 +201,7 @@ async function drawBack(canvas: HTMLCanvasElement, member: CardMember, contact: 
   ctx.lineWidth = 2;
   ctx.fillStyle = GREY;
   ctx.font = `600 20px ${family}`;
-  for (const [x, title] of [[left, "President"], [left + 340, "Secretary"]] as const) {
+  for (const [x, title] of [[left, "தலைவர்"], [left + 340, "செயலாளர்"]] as const) {
     ctx.beginPath();
     ctx.moveTo(x, H - 132);
     ctx.lineTo(x + 270, H - 132);
@@ -205,7 +215,7 @@ async function drawBack(canvas: HTMLCanvasElement, member: CardMember, contact: 
   ctx.fillRect(0, H - 14, W, 14);
   ctx.fillStyle = "#FFFFFF";
   ctx.font = `700 22px ${family}`;
-  ctx.fillText("Kavery Sports Club · Periyaneelavanai · Since 1981", left, H - 27);
+  ctx.fillText("காவேரி விளையாட்டுக் கழகம் · பெரியநீலாவணை · 1981 முதல்", left, H - 27);
 }
 
 const actionClass = "inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-semibold hover:bg-muted disabled:opacity-50";
@@ -244,16 +254,16 @@ export function MembershipCard({ member, contact }: { member: CardMember; contac
         }}
       />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <h2 className="text-lg text-foreground">Membership card</h2>
+        <h2 className="text-lg text-foreground">உறுப்பினர் அடையாள அட்டை</h2>
         <div className="flex flex-wrap gap-2">
           <button type="button" disabled={!ready} onClick={() => download("front")} className={actionClass}>
-            <Download size={15} aria-hidden /> Front
+            <Download size={15} aria-hidden /> முன்பக்கம்
           </button>
           <button type="button" disabled={!ready} onClick={() => download("back")} className={actionClass}>
-            <Download size={15} aria-hidden /> Back
+            <Download size={15} aria-hidden /> பின்பக்கம்
           </button>
           <button type="button" disabled={!ready} onClick={() => window.print()} className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50">
-            <Printer size={15} aria-hidden /> Print
+            <Printer size={15} aria-hidden /> அச்சிடுக
           </button>
         </div>
       </div>

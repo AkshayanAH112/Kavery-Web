@@ -83,13 +83,15 @@ async function drawCard(canvas: HTMLCanvasElement, student: CardStudent) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const root = getComputedStyle(document.documentElement);
-  const family = `${root.getPropertyValue("--font-hanken") || "system-ui"}, ${root.getPropertyValue("--font-anek") || "sans-serif"}, sans-serif`;
+  const family = `${root.getPropertyValue("--font-anek") || "sans-serif"}, ${root.getPropertyValue("--font-hanken") || "system-ui"}, sans-serif`;
   const [logo, qr, photo] = await Promise.all([
     loadImage("/brand/keda-logo.webp"),
     loadImage(await QRCode.toDataURL(student.qrCode, { margin: 1, scale: 12, errorCorrectionLevel: "M" })),
     // Served by the signed-in photo route on this origin, so the canvas stays exportable.
     student.photoUrl ? loadImage(student.photoUrl).catch(() => null) : null,
+    document.fonts.load(`800 34px ${family}`, "காவேரி கல்விசார் அபிவிருத்தி ஒன்றியம்").catch(() => {}),
     document.fonts.load(`700 40px ${family}`, student.name).catch(() => {}),
+    document.fonts.load(`700 20px ${family}`, "பெயர் சுட்டெண் தரம் பிரிவு").catch(() => {}),
   ]);
 
   ctx.fillStyle = "#FFFFFF";
@@ -105,11 +107,11 @@ async function drawCard(canvas: HTMLCanvasElement, student: CardStudent) {
   ctx.drawImage(logo, 42, 30, 90, 90 * (logo.height / logo.width));
   ctx.textBaseline = "alphabetic";
   ctx.font = `800 34px ${family}`;
-  ctx.fillText("KAVERY EDUCATION", 164, 70);
-  ctx.fillText("DEVELOPMENT ASSOCIATION", 164, 110);
+  ctx.fillText("காவேரி கல்விசார்", 164, 68);
+  ctx.fillText("அபிவிருத்தி ஒன்றியம்", 164, 106);
   ctx.fillStyle = "#FBF1B0";
-  ctx.font = `600 22px ${family}`;
-  ctx.fillText("Periyaneelavanai · Student card", 164, 140);
+  ctx.font = `700 21px ${family}`;
+  ctx.fillText("பெரியநீலாவணை · மாணவர் அடையாள அட்டை", 164, 138);
 
   // Photo — what lets a teacher match the card to the child holding it. Without one, an initial.
   const px = 48, py = 190, pw = 196, ph = 246;
@@ -128,7 +130,7 @@ async function drawCard(canvas: HTMLCanvasElement, student: CardStudent) {
     ctx.fillStyle = "#9AA6C0";
     ctx.font = `800 96px ${family}`;
     ctx.textAlign = "center";
-    ctx.fillText(student.name.trim().charAt(0).toUpperCase() || "?", px + pw / 2, py + ph / 2 + 34);
+    ctx.fillText(student.name.trim().charAt(0) || "?", px + pw / 2, py + ph / 2 + 34);
     ctx.textAlign = "left";
   }
   ctx.restore();
@@ -153,23 +155,23 @@ async function drawCard(canvas: HTMLCanvasElement, student: CardStudent) {
   const textWidth = qrX - 24 - left;
   const label = (text: string, x: number, y: number) => {
     ctx.fillStyle = "#4A5878";
-    ctx.font = `600 20px ${family}`;
+    ctx.font = `700 20px ${family}`;
     ctx.fillText(text, x, y);
   };
-  label("NAME", left, 214);
+  label("பெயர்", left, 214);
   ctx.fillStyle = INK;
   const name = fitName(ctx, student.name, family, textWidth);
   ctx.font = `800 ${name.size}px ${family}`;
   name.lines.forEach((line, i) => ctx.fillText(line, left, (name.lines.length === 1 ? 264 : 250) + i * (name.size + 6), textWidth));
 
-  label("INDEX NUMBER", left, 346);
+  label("சுட்டெண்", left, 346);
   ctx.fillStyle = BLUE;
   fitText(ctx, student.registrationNumber ?? "—", family, 800, 46, 30, textWidth);
   ctx.fillText(student.registrationNumber ?? "—", left, 394, textWidth);
 
   const batch = typeof student.batchId === "object" ? student.batchId : undefined;
   const grade = gradeLine(student, batch);
-  label("GRADE", left, 448);
+  label("தரம்", left, 448);
   ctx.fillStyle = INK;
   ctx.font = `700 34px ${family}`;
   // The batch sits beside the grade, after however much room the grade took.
@@ -177,8 +179,8 @@ async function drawCard(canvas: HTMLCanvasElement, student: CardStudent) {
   ctx.fillText(grade, left, 490);
   if (batch?.name) {
     const room = left + textWidth - batchLeft;
-    if (room >= 200) {
-      label("BATCH", batchLeft, 448);
+    if (room >= 180) {
+      label("பிரிவு", batchLeft, 448);
       ctx.fillStyle = INK;
       fitText(ctx, batch.name, family, 700, 34, 20, room);
       ctx.fillText(batch.name, batchLeft, 490, room);
@@ -197,7 +199,7 @@ async function drawCard(canvas: HTMLCanvasElement, student: CardStudent) {
   ctx.fillRect(0, H - 14, W, 14);
   ctx.fillStyle = "#FFFFFF";
   ctx.font = `700 22px ${family}`;
-  ctx.fillText("An education project of Kavery Sports Club", left, H - 27);
+  ctx.fillText("காவேரி விளையாட்டுக் கழகத்தின் கல்விப் பிரிவு", left, H - 27);
 }
 
 /**
@@ -237,15 +239,15 @@ export function StudentIdCardModal({ student, onClose }: { student: CardStudent;
           __html: `@media print { body * { visibility: hidden; } #printable-id-card { visibility: visible; position: fixed; left: 0; top: 0; width: 85.6mm; height: 54mm; border: 0; border-radius: 0; } }`,
         }}
       />
-      <div role="dialog" aria-modal="true" aria-label={`Student card for ${student.name}`} className="w-full max-w-lg rounded-[var(--card-radius)] border border-border bg-card p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-label={`${student.name} - மாணவர் அடையாள அட்டை`} className="w-full max-w-lg rounded-[var(--card-radius)] border border-border bg-card p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-5 flex items-center justify-between gap-3 print:hidden">
-          <h3 className="text-lg font-semibold text-foreground">Student card</h3>
+          <h3 className="text-lg font-semibold text-foreground">மாணவர் அடையாள அட்டை</h3>
           <div className="flex gap-2">
             <button type="button" disabled={!ready} onClick={() => window.print()} className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-semibold hover:bg-muted disabled:opacity-50">
-              <Printer size={15} aria-hidden /> Print
+              <Printer size={15} aria-hidden /> அச்சிடுக
             </button>
             <button type="button" disabled={!ready} onClick={download} className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50">
-              <Download size={15} aria-hidden /> Download
+              <Download size={15} aria-hidden /> பதிவிறக்குக
             </button>
           </div>
         </div>
@@ -253,7 +255,7 @@ export function StudentIdCardModal({ student, onClose }: { student: CardStudent;
         <canvas id="printable-id-card" ref={canvasRef} width={W} height={H} className="h-auto w-full rounded-xl border border-border" />
 
         <button type="button" onClick={onClose} className="mt-5 min-h-11 w-full cursor-pointer rounded-lg border border-border font-semibold hover:bg-muted print:hidden">
-          Close
+          மூடுக
         </button>
       </div>
     </div>
