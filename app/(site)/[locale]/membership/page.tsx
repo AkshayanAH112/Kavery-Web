@@ -9,7 +9,30 @@ import { getSettings } from "@/lib/site";
 export async function generateMetadata({ params }: PageProps<"/[locale]/membership">): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "Membership" });
-  return { title: t("meta_title"), description: t("meta_description"), alternates: { languages: { en: "/en/membership", ta: "/ta/membership", "x-default": "/en/membership" } } };
+  const title = t("meta_title");
+  const description = t("meta_description");
+  const ogImage = locale === "ta" ? "/brand/og-image-ta.png" : "/brand/og-image-en.png";
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: `/${locale}/membership`,
+      languages: { en: "/en/membership", ta: "/ta/membership", "x-default": "/en/membership" },
+    },
+    openGraph: {
+      title,
+      description,
+      url: `/${locale}/membership`,
+      images: [{ url: ogImage, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImage],
+    },
+  };
 }
 
 export default async function JoinPage({ params }: PageProps<"/[locale]/membership">) {

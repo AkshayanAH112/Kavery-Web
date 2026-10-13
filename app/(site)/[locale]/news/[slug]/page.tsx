@@ -7,11 +7,43 @@ import { getPublishedPost } from "@/lib/content/public";
 import { htmlToText } from "@/lib/content/sanitize";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/news/[slug]">): Promise<Metadata> {
-  const { slug } = await params;
+  const { locale, slug } = await params;
   const post = await getPublishedPost(slug);
   // A draft or a missing post gets a generic title and stays out of search results.
   if (!post) return { title: "Kavery Sports Club", robots: { index: false, follow: true } };
-  return { title: `${post.title} | Kavery Sports Club`, description: post.excerpt || htmlToText(post.content).slice(0, 160), openGraph: post.coverUrl ? { images: [post.coverUrl] } : undefined };
+
+  const clubName = locale === "ta" ? "காவேரி விளையாட்டுக் கழகம்" : "Kavery Sports Club";
+  const title = `${post.title} | ${clubName}`;
+  const description = post.excerpt || htmlToText(post.content).slice(0, 160);
+  const ogImage = post.coverUrl || (locale === "ta" ? "/brand/og-image-ta.png" : "/brand/og-image-en.png");
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: `/${locale}/news/${slug}`,
+      languages: {
+        en: `/en/news/${slug}`,
+        ta: `/ta/news/${slug}`,
+        "x-default": `/en/news/${slug}`,
+      },
+    },
+    openGraph: {
+      type: "article",
+      title,
+      description,
+      url: `/${locale}/news/${slug}`,
+      publishedTime: post.publishedAt?.toISOString(),
+      authors: [post.author],
+      images: [{ url: ogImage, width: 1200, height: 630, alt: post.title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImage],
+    },
+  };
 }
 
 export default async function PostPage({ params }: PageProps<"/[locale]/news/[slug]">) {
@@ -21,14 +53,37 @@ export default async function PostPage({ params }: PageProps<"/[locale]/news/[sl
   if (!post) notFound();
   const t = await getTranslations();
 
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    headline: post.title,
+    description: post.excerpt || htmlToText(post.content).slice(0, 160),
+    image: post.coverUrl ? [post.coverUrl] : ["https://periyaneelavanaikaverysports.club/brand/og-image-en.png"],
+    datePublished: post.publishedAt?.toISOString(),
+    author: [{ "@type": "Person", name: post.author }],
+    publisher: {
+      "@type": "SportsClub",
+      name: "Kavery Sports Club",
+      logo: {
+        "@type": "ImageObject",
+        url: "https://periyaneelavanaikaverysports.club/brand/ksc-crest.png",
+      },
+    },
+  };
+
   return (
-    <PageShell
-      narrow
-      crumbs={[{ label: t("nav.home"), href: `/${locale}` }, { label: t("news.eyebrow"), href: `/${locale}/news` }, { label: post.title }]}
-      eyebrow={post.org === "keda" ? t("news.keda") : t("news.ksc")}
-      title={post.title}
-      lead={post.excerpt ?? undefined}
-    >
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
+      <PageShell
+        narrow
+        crumbs={[{ label: t("nav.home"), href: `/${locale}` }, { label: t("news.eyebrow"), href: `/${locale}/news` }, { label: post.title }]}
+        eyebrow={post.org === "keda" ? t("news.keda") : t("news.ksc")}
+        title={post.title}
+        lead={post.excerpt ?? undefined}
+      >
       <p className="-mt-4 mb-8 text-sm text-muted-foreground">
         {post.publishedAt && formatDate(post.publishedAt, locale)} · {post.author}
       </p>
@@ -52,5 +107,6 @@ export default async function PostPage({ params }: PageProps<"/[locale]/news/[sl
         </section>
       )}
     </PageShell>
+    </>
   );
 }

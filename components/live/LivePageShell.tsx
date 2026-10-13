@@ -48,10 +48,27 @@ export default async function LivePageShell({ locale, current, children }: { loc
 export async function liveMetadata(locale: string, path: string, name?: string | null): Promise<Metadata> {
   const t = await getTranslations({ locale, namespace: "Live" });
   const title = name ? `${name} | ${t("meta_title")}` : t("meta_title");
+  const ogImage = locale === "ta" ? "/brand/og-image-ta.png" : "/brand/og-image-en.png";
+  const description = t("meta_description");
   return {
     title,
-    description: t("meta_description"),
-    alternates: { languages: { en: `/en${path}`, ta: `/ta${path}`, "x-default": `/en${path}` } },
+    description,
+    alternates: {
+      canonical: `/${locale}${path}`,
+      languages: { en: `/en${path}`, ta: `/ta${path}`, "x-default": `/en${path}` },
+    },
+    openGraph: {
+      title,
+      description,
+      url: `/${locale}${path}`,
+      images: [{ url: ogImage, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImage],
+    },
     ...(name === null ? { robots: { index: false, follow: true } } : {}),
   };
 }

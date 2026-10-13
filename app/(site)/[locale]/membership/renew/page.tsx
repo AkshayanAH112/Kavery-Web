@@ -8,7 +8,30 @@ import { getMembershipSettings } from "@/lib/membership/server";
 export async function generateMetadata({ params }: PageProps<"/[locale]/membership/renew">): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "Membership" });
-  return { title: t("renew_meta_title"), alternates: { languages: { en: "/en/membership/renew", ta: "/ta/membership/renew", "x-default": "/en/membership/renew" } } };
+  const title = t("renew_meta_title");
+  const description = t("meta_description");
+  const ogImage = locale === "ta" ? "/brand/og-image-ta.png" : "/brand/og-image-en.png";
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: `/${locale}/membership/renew`,
+      languages: { en: "/en/membership/renew", ta: "/ta/membership/renew", "x-default": "/en/membership/renew" },
+    },
+    openGraph: {
+      title,
+      description,
+      url: `/${locale}/membership/renew`,
+      images: [{ url: ogImage, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImage],
+    },
+  };
 }
 
 export default async function RenewPage({ params }: PageProps<"/[locale]/membership/renew">) {

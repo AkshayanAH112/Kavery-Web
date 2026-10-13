@@ -22,12 +22,81 @@ export async function generateMetadata({ params }: LayoutProps<"/[locale]">): Pr
   const { locale } = await params;
   if (!isLocale(locale)) return {};
   const t = await getTranslations({ locale, namespace: "meta" });
+  const isTa = locale === "ta";
+
+  const title = t("title");
+  const description = t("description");
+  const clubName = isTa ? "காவேரி விளையாட்டுக் கழகம்" : CLUB.name;
+  const siteName = isTa ? "காவேரி விளையாட்டுக் கழகம் — பெரியநீலாவணை" : "Kavery Sports Club — Periyaneelavanai";
+  const ogImage = isTa ? "/brand/og-image-ta.png" : "/brand/og-image-en.png";
+
   return {
-    title: t("title"),
-    description: t("description"),
+    metadataBase: new URL("https://periyaneelavanaikaverysports.club"),
+    title,
+    description,
+    applicationName: clubName,
+    keywords: [
+      "Kavery Sports Club",
+      "Periyaneelavanai",
+      "KSC",
+      "KEDA",
+      "Kavery Education Development Association",
+      "Periyaneelavanai sports",
+      "Batticaloa cricket",
+      "Ampara cricket",
+      "Eastern Province cricket",
+      "Sri Lanka club cricket",
+      "காவேரி விளையாட்டுக் கழகம்",
+      "பெரியநீலாவணை",
+      "காவேரி கல்விசார் அபிவிருத்தி ஒன்றியம்",
+      "கல்வி இலவச வகுப்புகள்",
+      "கிரிக்கெட் போட்டி முடிவுகள்",
+    ],
+    authors: [{ name: CLUB.name, url: "https://periyaneelavanaikaverysports.club" }],
+    creator: CLUB.name,
+    publisher: CLUB.name,
+    formatDetection: { telephone: true, date: true, address: true, email: true },
     appleWebApp: { capable: true, title: "Kavery", statusBarStyle: "black-translucent" },
     icons: SITE_ICONS,
-    alternates: { languages: { en: "/en", ta: "/ta", "x-default": "/en" } },
+    alternates: {
+      canonical: `/${locale}`,
+      languages: { en: "/en", ta: "/ta", "x-default": "/en" },
+    },
+    openGraph: {
+      type: "website",
+      locale: isTa ? "ta_LK" : "en_US",
+      alternateLocale: [isTa ? "en_US" : "ta_LK"],
+      url: `/${locale}`,
+      siteName,
+      title,
+      description,
+      images: [
+        {
+          url: ogImage,
+          width: 1200,
+          height: 630,
+          alt: siteName,
+          type: "image/png",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImage],
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
+    },
   };
 }
 
@@ -37,6 +106,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[lo
   setRequestLocale(locale);
 
   const [t, settings] = await Promise.all([getTranslations(), getSettings()]);
+  const isTa = locale === "ta";
   const base = `/${locale}`;
   const other = locale === "en" ? "ta" : "en";
   const links = [
@@ -49,8 +119,64 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[lo
     { href: `${base}/membership`, label: t("nav.join") },
   ];
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SportsClub",
+        "@id": "https://periyaneelavanaikaverysports.club/#club",
+        name: "Kavery Sports Club",
+        alternateName: ["காவேரி விளையாட்டுக் கழகம்", "KSC", "Kavery SC", "Periyaneelavanai Kavery Sports Club"],
+        url: "https://periyaneelavanaikaverysports.club",
+        logo: "https://periyaneelavanaikaverysports.club/brand/ksc-crest.png",
+        image: "https://periyaneelavanaikaverysports.club/brand/og-image-en.png",
+        foundingDate: "1981",
+        sport: "Cricket",
+        address: {
+          "@type": "PostalAddress",
+          streetAddress: settings.address || "Periyaneelavanai",
+          addressLocality: "Periyaneelavanai",
+          addressRegion: "Eastern Province",
+          addressCountry: "LK",
+        },
+        ...(settings.contactPhone ? { telephone: settings.contactPhone } : {}),
+        ...(settings.contactEmail ? { email: settings.contactEmail } : {}),
+        description: isTa
+          ? "பெரியநீலாவணையில் 1981 முதல் இயங்கிவரும் காவேரி விளையாட்டுக் கழகம். கிரிக்கெட், விளையாட்டு நிகழ்வுகள் மற்றும் கிராம சமூக மேம்பாட்டுப் பணிகள்."
+          : "Kavery Sports Club in Periyaneelavanai, Sri Lanka, established in 1981. Cricket club, live match centre, and community sports.",
+      },
+      {
+        "@type": "EducationalOrganization",
+        "@id": "https://periyaneelavanaikaverysports.club/#keda",
+        name: "Kavery Education Development Association",
+        alternateName: ["காவேரி கல்விசார் அபிவிருத்தி ஒன்றியம்", "KEDA"],
+        parentOrganization: { "@id": "https://periyaneelavanaikaverysports.club/#club" },
+        url: "https://periyaneelavanaikaverysports.club",
+        logo: "https://periyaneelavanaikaverysports.club/brand/keda-logo.webp",
+        foundingDate: "2023",
+        description: isTa
+          ? "பெரியநீலாவணைக் கிராம மாணவர்களுக்கான இலவசக் கல்வி வகுப்புகள், பரீட்சை வழிகாட்டல்கள் மற்றும் கல்விசார் அபிவிருத்தி திட்டங்கள்."
+          : "Free community education, revision classes, and academic development for students in Periyaneelavanai.",
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://periyaneelavanaikaverysports.club/#website",
+        url: "https://periyaneelavanaikaverysports.club",
+        name: isTa ? "காவேரி விளையாட்டுக் கழகம்" : "Kavery Sports Club",
+        publisher: { "@id": "https://periyaneelavanaikaverysports.club/#club" },
+        inLanguage: ["en", "ta"],
+      },
+    ],
+  };
+
   return (
     <html lang={locale} className={`${fontVariables} antialiased`}>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body className="theme-night min-h-screen">
         {/* No NextIntlClientProvider: client components get their strings as props, so the
             message catalogue is never shipped to the browser. */}

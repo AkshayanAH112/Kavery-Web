@@ -9,7 +9,30 @@ import { paragraphs, type Bilingual, type Officer } from "@/lib/site-settings";
 export async function generateMetadata({ params }: PageProps<"/[locale]/about">): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale });
-  return { title: `${t("about.eyebrow")} | ${t("hero.line1")} ${t("hero.line2")}`, description: t("club.p1"), alternates: { languages: { en: "/en/about", ta: "/ta/about", "x-default": "/en/about" } } };
+  const title = `${t("about.eyebrow")} | ${t("hero.line1")} ${t("hero.line2")}`;
+  const description = t("club.p1");
+  const ogImage = locale === "ta" ? "/brand/og-image-ta.png" : "/brand/og-image-en.png";
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: `/${locale}/about`,
+      languages: { en: "/en/about", ta: "/ta/about", "x-default": "/en/about" },
+    },
+    openGraph: {
+      title,
+      description,
+      url: `/${locale}/about`,
+      images: [{ url: ogImage, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImage],
+    },
+  };
 }
 
 function Officers({ title, people }: { title: string; people: Officer[] }) {

@@ -8,7 +8,32 @@ import { getPublishedPosts, orgFilter } from "@/lib/content/public";
 export async function generateMetadata({ params }: PageProps<"/[locale]/news">): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "news" });
-  return { title: `${t("title")} | Kavery Sports Club`, alternates: { languages: { en: "/en/news", ta: "/ta/news", "x-default": "/en/news" } } };
+  const title = `${t("title")} | ${locale === "ta" ? "காவேரி விளையாட்டுக் கழகம்" : "Kavery Sports Club"}`;
+  const description = locale === "ta"
+    ? "காவேரி விளையாட்டுக் கழகம் மற்றும் காவேரி கல்விசார் அபிவிருத்தி ஒன்றியத்தின் சமீபத்திய செய்திகள் மற்றும் அறிவிப்புகள்."
+    : "Latest news, announcements, tournament updates and academy reports from Kavery Sports Club and KEDA.";
+  const ogImage = locale === "ta" ? "/brand/og-image-ta.png" : "/brand/og-image-en.png";
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: `/${locale}/news`,
+      languages: { en: "/en/news", ta: "/ta/news", "x-default": "/en/news" },
+    },
+    openGraph: {
+      title,
+      description,
+      url: `/${locale}/news`,
+      images: [{ url: ogImage, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [ogImage],
+    },
+  };
 }
 
 export default async function NewsPage({ params, searchParams }: PageProps<"/[locale]/news">) {
