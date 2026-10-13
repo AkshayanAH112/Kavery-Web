@@ -58,7 +58,7 @@ export function Hero({ eyebrow, line1, line2, lead, founded, actions, children }
       >
         <Image
           src="/brand/ksc-crest.webp"
-          alt=""
+          alt="Kavery Sports Club crest"
           width={900}
           height={890}
           loading="eager"

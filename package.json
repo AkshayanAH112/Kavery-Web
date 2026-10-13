@@ -16,6 +16,7 @@
     "db:seed": "node scripts/seed.mjs",
     "typecheck": "tsc --noEmit",
     "vapid": "node scripts/vapid.mjs",
+    "indexnow": "node scripts/indexnow.mjs",
     "db:demo": "wrangler d1 execute kavery-db --local --file scripts/demo.sql",
     "db:demo:clear": "wrangler d1 execute kavery-db --local --file scripts/demo-clear.sql",
     "db:demo:cricket": "node scripts/demo-cricket.mjs create",

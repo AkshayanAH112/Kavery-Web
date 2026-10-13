@@ -129,7 +129,7 @@ export function TeamLogo({ team, size = 40, className }: { team: TeamBrief; size
       // Plain <img>: the optimizer is off site-wide (next.config.ts), and crests
       // are already resized at upload.
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={team.logoUrl} alt="" width={size} height={size} style={style} className={cn("shrink-0 rounded-full border border-line bg-fg object-contain", className)} />
+      <img src={team.logoUrl} alt={team.name} width={size} height={size} style={style} className={cn("shrink-0 rounded-full border border-line bg-fg object-contain", className)} />
     );
   }
   return (

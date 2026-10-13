@@ -90,7 +90,7 @@ export default async function AboutPage({ params }: PageProps<"/[locale]/about">
           </a>
         </div>
         <aside className="live-card self-start p-6 md:p-8">
-          <Image src="/brand/ksc-crest.webp" alt="" width={900} height={890} className="mx-auto h-auto w-40" />
+          <Image src="/brand/ksc-crest.webp" alt="Kavery Sports Club crest" width={900} height={890} className="mx-auto h-auto w-40" />
           <dl className="mt-6">
             <Fact label={t("about.founded")} value={CLUB.founded} />
             <Fact label={t("stats.years")} value={stats.years} />

@@ -196,8 +196,8 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[lo
             <div className="container-x grid gap-12 py-16 md:grid-cols-[1.4fr_1fr_1fr]">
               <div>
                 <div className="flex items-center gap-4">
-                  <Image src="/brand/ksc-crest.png" alt="" width={72} height={72} className="h-18 w-18" />
-                  <Image src="/brand/keda-logo.webp" alt="" width={64} height={67} className="h-16 w-auto rounded-md bg-white p-1" />
+                  <Image src="/brand/ksc-crest.png" alt="Kavery Sports Club crest" width={72} height={72} className="h-18 w-18" />
+                  <Image src="/brand/keda-logo.webp" alt="Kavery Education Development Association (KEDA) logo" width={64} height={67} className="h-16 w-auto rounded-md bg-white p-1" />
                 </div>
                 <p className="mt-6 max-w-sm leading-relaxed text-muted-foreground">{t("footer.tagline")}</p>
               </div>

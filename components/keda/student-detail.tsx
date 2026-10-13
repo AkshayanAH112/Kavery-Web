@@ -129,7 +129,7 @@ export default function StudentProfilePage() {
             <div className="w-24 h-24 bg-card rounded-full border-4 border-white flex items-center justify-center shadow-lg mb-3 overflow-hidden">
               {student.photoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element -- a private file behind the signed-in route
-                <img src={student.photoUrl} alt="" className="h-full w-full object-cover" />
+                <img src={student.photoUrl} alt={student.name} className="h-full w-full object-cover" />
               ) : (
                 <span className="text-3xl font-bold text-primary">{student.name.charAt(0)}</span>
               )}

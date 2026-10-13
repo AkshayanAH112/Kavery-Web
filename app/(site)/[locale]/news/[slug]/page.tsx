@@ -89,7 +89,7 @@ export default async function PostPage({ params }: PageProps<"/[locale]/news/[sl
       </p>
       {post.coverUrl && (
         // eslint-disable-next-line @next/next/no-img-element -- already resized before upload
-        <img src={post.coverUrl} alt="" className="mb-10 aspect-[16/9] w-full rounded-[var(--card-radius)] object-cover" />
+        <img src={post.coverUrl} alt={post.title} className="mb-10 aspect-[16/9] w-full rounded-[var(--card-radius)] object-cover" />
       )}
       {/* The body was sanitised against an allow-list when it was saved (lib/content/sanitize.ts). */}
       <div

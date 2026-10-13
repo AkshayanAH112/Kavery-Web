@@ -238,7 +238,7 @@ export default function FolderGalleryPage() {
             return (
               <div key={img._id} className={`overflow-hidden rounded-lg border bg-card shadow-xs transition-all ${isCover ? 'border-primary ring-2 ring-primary/20' : 'border-border'}`}>
                 <div className="relative aspect-[4/3] bg-muted group">
-                  <Image src={img.url} alt={img.caption || ""} fill className="object-cover" />
+                  <Image src={img.url} alt={img.caption || "Gallery photo"} fill className="object-cover" />
                   
                   {isCover && (
                     <div className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-primary/90 px-2 py-1 text-xs font-medium text-primary-foreground backdrop-blur-sm">

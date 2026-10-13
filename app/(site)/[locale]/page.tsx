@@ -174,7 +174,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       {/* The club */}
       <section id="club" className="relative overflow-hidden border-t border-line py-[var(--section-y)]">
         <Parallax distance={160} className="pointer-events-none absolute -right-[6vw] top-10 hidden select-none lg:block">
-          <Image src="/brand/ksc-crest.webp" alt="" width={900} height={890} className="h-auto w-[36vw] max-w-[34rem] opacity-[0.07] grayscale" />
+          <Image src="/brand/ksc-crest.webp" alt="Kavery Sports Club crest" width={900} height={890} className="h-auto w-[36vw] max-w-[34rem] opacity-[0.07] grayscale" />
         </Parallax>
         <div className="container-x relative grid gap-14 lg:grid-cols-[1.1fr_0.9fr] lg:gap-20">
           <Reveal className="min-w-0">

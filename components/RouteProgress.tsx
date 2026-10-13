@@ -58,7 +58,7 @@ export function RouteProgress() {
       {/* Fades in after a short delay (CSS), so a fast page never flashes it. */}
       <div aria-hidden className="route-wait">
         {/* eslint-disable-next-line @next/next/no-img-element -- a small static crest; it must not wait on the image optimiser */}
-        <img src="/brand/ksc-crest.webp" alt="" className="loading-crest h-auto w-28" />
+        <img src="/brand/ksc-crest.webp" alt="Kavery Sports Club crest" className="loading-crest h-auto w-28" />
         <div className="loading-bar">
           <span />
         </div>

@@ -315,7 +315,7 @@ function StudentsPageContent() {
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-sm font-bold text-primary">
                           {sys.photoUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element -- a private file behind the signed-in route
-                            <img src={sys.photoUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+                            <img src={sys.photoUrl} alt={sys.name} loading="lazy" className="h-full w-full object-cover" />
                           ) : (
                             sys.name.charAt(0)
                           )}
@@ -395,7 +395,7 @@ function StudentsPageContent() {
                 <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
                   {photoPreview ? (
                     // eslint-disable-next-line @next/next/no-img-element -- a local preview of the chosen file
-                    <img src={photoPreview} alt="" className="h-full w-full object-cover" />
+                    <img src={photoPreview} alt="Student photo preview" className="h-full w-full object-cover" />
                   ) : (
                     <span className="text-2xl font-bold text-primary">{formData.name.trim().charAt(0)}</span>
                   )}

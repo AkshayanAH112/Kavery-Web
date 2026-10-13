@@ -114,7 +114,7 @@ export default function NewsListPage() {
                 {post.coverImageUrl ? (
                   <Image
                     src={post.coverImageUrl}
-                    alt=""
+                    alt={post.title}
                     fill
                     sizes="(max-width: 640px) 100vw, 33vw"
                     className="object-cover"

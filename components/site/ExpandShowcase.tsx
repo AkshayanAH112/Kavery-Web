@@ -40,10 +40,10 @@ export function ExpandShowcase({ word, items }: { word: string; items: ShowcaseI
             <a href={item.href} className="showcase-link">
               {item.image ? (
                 // eslint-disable-next-line @next/next/no-img-element -- uploads are already resized; the optimizer would only re-compress them
-                <img src={item.image} alt="" loading="lazy" className="showcase-image" />
+                <img src={item.image} alt={item.title} loading="lazy" className="showcase-image" />
               ) : (
                 <span className={`showcase-blank ${item.tone === "keda" ? "showcase-blank-keda" : ""}`}>
-                  <Image src={item.tone === "keda" ? "/brand/keda-logo.webp" : "/brand/ksc-crest.webp"} alt="" width={320} height={320} className="h-auto w-2/5 max-w-40 opacity-25" />
+                  <Image src={item.tone === "keda" ? "/brand/keda-logo.webp" : "/brand/ksc-crest.webp"} alt={item.tone === "keda" ? "KEDA logo" : "Kavery Sports Club crest"} width={320} height={320} className="h-auto w-2/5 max-w-40 opacity-25" />
                 </span>
               )}
               <span className="showcase-shade" />

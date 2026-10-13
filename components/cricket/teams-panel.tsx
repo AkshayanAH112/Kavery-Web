@@ -23,7 +23,7 @@ export function TeamBadge({ team, size = 36 }: { team: { name: string; shortName
   if (team.logoUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={team.logoUrl} alt="" width={size} height={size} className="shrink-0 rounded-full border border-border bg-white object-contain" style={{ width: size, height: size }} />
+      <img src={team.logoUrl} alt={team.name} width={size} height={size} className="shrink-0 rounded-full border border-border bg-white object-contain" style={{ width: size, height: size }} />
     );
   }
   return (

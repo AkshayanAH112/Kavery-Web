@@ -54,7 +54,7 @@ export default async function GalleryPage({ params, searchParams }: PageProps<"/
             <li key={album.id}>
               <Link href={`/${locale}/gallery/${album.id}`} className="group relative block aspect-[4/3] overflow-hidden rounded-[var(--card-radius)] bg-surface">
                 {/* eslint-disable-next-line @next/next/no-img-element -- already resized before upload */}
-                <img src={album.coverUrl!} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                <img src={album.coverUrl!} alt={album.name} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
                 <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent p-4 pt-12">
                   <span className="block font-semibold text-white">{album.name}</span>
                   <span className="block text-sm text-white/75">{t("gallery.photos", { count: album.imageCount })}</span>

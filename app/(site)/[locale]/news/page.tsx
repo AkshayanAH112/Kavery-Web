@@ -55,7 +55,7 @@ export default async function NewsPage({ params, searchParams }: PageProps<"/[lo
                 <article className="live-card flex h-full flex-col overflow-hidden transition-colors group-hover:border-fg">
                   {post.coverUrl && (
                     // eslint-disable-next-line @next/next/no-img-element -- already resized before upload
-                    <img src={post.coverUrl} alt="" loading="lazy" className="aspect-[16/10] w-full object-cover" />
+                    <img src={post.coverUrl} alt={post.title} loading="lazy" className="aspect-[16/10] w-full object-cover" />
                   )}
                   <div className="flex flex-1 flex-col p-6">
                     <p className="eyebrow text-accent">{post.org === "keda" ? t("news.keda") : t("news.ksc")}</p>

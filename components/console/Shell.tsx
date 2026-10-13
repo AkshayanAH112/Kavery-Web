@@ -129,7 +129,7 @@ export function Shell({ groups, user, children }: { groups: ConsoleGroup[]; user
       >
         <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-4">
           <Link href="/console" className="flex min-w-0 items-center gap-2.5" onClick={() => setDrawer(false)}>
-            <Image src="/brand/ksc-crest.png" alt="" width={40} height={40} className="h-10 w-10 shrink-0" />
+            <Image src="/brand/ksc-crest.png" alt="Kavery Sports Club crest" width={40} height={40} className="h-10 w-10 shrink-0" />
             <span className={cn("truncate text-lg font-bold tracking-tight", collapsed && "lg:hidden")}>
               Kavery<span className="text-brand-text">.</span>
             </span>

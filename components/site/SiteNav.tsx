@@ -47,7 +47,7 @@ export function SiteNav({ home, links, app, language, labels }: Props) {
       >
         <div className="container-x flex h-full items-center justify-between gap-6">
           <Link href={home} className="flex items-center gap-3" onClick={() => setOpen(false)}>
-            <Image src="/brand/ksc-crest.png" alt="" width={44} height={44} className="h-11 w-11" />
+            <Image src="/brand/ksc-crest.png" alt="Kavery Sports Club crest" width={44} height={44} className="h-11 w-11" />
             <span className="display text-xl leading-none tracking-wide">{labels.brand}</span>
           </Link>
 

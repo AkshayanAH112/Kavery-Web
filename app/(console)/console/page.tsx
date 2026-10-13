@@ -58,7 +58,7 @@ export default async function ConsoleHome({ searchParams }: PageProps<"/console"
               {cricket && !education && <Stat label="Matches finished" value={cricket.completed} />}
             </div>
           </div>
-          <Image src="/brand/ksc-crest.webp" alt="" width={900} height={890} className="pointer-events-none absolute -bottom-10 -right-6 h-auto w-44 opacity-90 sm:w-52" />
+          <Image src="/brand/ksc-crest.webp" alt="Kavery Sports Club crest" width={900} height={890} className="pointer-events-none absolute -bottom-10 -right-6 h-auto w-44 opacity-90 sm:w-52" />
         </Card>
 
         {cricket && (

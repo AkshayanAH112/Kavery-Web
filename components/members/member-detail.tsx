@@ -203,7 +203,7 @@ export default function MemberDetailPage({ contact, currency }: { contact: CardC
           {member.photoUrl ? (
             <a href={member.photoUrl} target="_blank" rel="noopener noreferrer" aria-label="Open the photo">
               {/* eslint-disable-next-line @next/next/no-img-element -- a private file behind the signed-in route */}
-              <img src={member.photoUrl} alt="" className="size-20 rounded-lg object-cover" />
+              <img src={member.photoUrl} alt={member.fullName} className="size-20 rounded-lg object-cover" />
             </a>
           ) : (
             <div className="flex size-20 items-center justify-center rounded-lg bg-muted text-muted-foreground">

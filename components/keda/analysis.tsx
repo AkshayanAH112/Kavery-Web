@@ -85,7 +85,7 @@ export default function AnalysisPage() {
       {reportFilters && (
         <div className="hidden items-center gap-4 border-b border-border pb-4 print:flex">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/keda-logo.png" alt="" className="h-16 w-auto" />
+          <img src="/brand/keda-logo.png" alt="Kavery Education Development Association (KEDA) logo" className="h-16 w-auto" />
           <div>
             <p className="text-lg font-bold">Kavery Education Development Association</p>
             <p className="text-sm">

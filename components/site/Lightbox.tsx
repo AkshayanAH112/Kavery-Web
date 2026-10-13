@@ -48,7 +48,7 @@ export function Lightbox({ photos, labels }: { photos: Photo[]; labels: Labels }
               className="group block aspect-square overflow-hidden rounded-[var(--card-radius)] bg-surface"
             >
               {/* eslint-disable-next-line @next/next/no-img-element -- already resized before upload */}
-              <img src={photo.url} alt={photo.caption ?? ""} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+              <img src={photo.url} alt={photo.caption || "Kavery Sports Club gallery photo"} loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
             </a>
           </li>
         ))}
@@ -66,7 +66,7 @@ export function Lightbox({ photos, labels }: { photos: Photo[]; labels: Labels }
           </div>
           <div className="relative flex min-h-0 flex-1 items-center justify-center px-2" onClick={(e) => e.stopPropagation()}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={current.url} alt={current.caption ?? ""} className="max-h-full max-w-full object-contain" />
+            <img src={current.url} alt={current.caption || "Kavery Sports Club gallery photo"} className="max-h-full max-w-full object-contain" />
             {photos.length > 1 && (
               <>
                 <button type="button" aria-label={labels.previous} onClick={() => step(-1)} className="absolute left-2 top-1/2 inline-flex h-12 w-12 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80">

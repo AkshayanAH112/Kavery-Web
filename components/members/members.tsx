@@ -137,7 +137,7 @@ export default function MembersListPage() {
                       <td className="px-4 py-2.5">
                         {m.photoUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element -- a private file behind the signed-in route
-                          <img src={m.photoUrl} alt="" loading="lazy" className="size-9 rounded-full object-cover" />
+                          <img src={m.photoUrl} alt={m.fullName} loading="lazy" className="size-9 rounded-full object-cover" />
                         ) : (
                           <div className="size-9 rounded-full bg-muted" />
                         )}
