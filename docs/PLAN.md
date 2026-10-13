@@ -187,7 +187,11 @@ suites, against the production Worker in the local Workers runtime: all three pa
 - Importing a class list from Excel: the names are converted from the Bamini font encoding to real
   Tamil, shown for checking and correction, and only then saved. Index numbers already in the
   system are skipped, so a list can be imported twice. Read against the club's 2026/27 sheet (counts
-  only): 90 index numbers found, 82 with names, every character converted.
+  only): 90 index numbers found, 82 with names, every character converted. Only the index number
+  and the name are taken; the 8 numbers with no name yet are left out.
+- Student details are typed in Tamil with Bamini keys: the name, school, address and guardian
+  fields (and the students search box) turn each key into real Tamil as it is typed, with a switch
+  for typing English. A photo can be added while registering a student.
 - The January promotion, with two faults in the original job fixed: a Grade 3 student could be
   promoted twice in one run, and running the job twice promoted everyone again.
 

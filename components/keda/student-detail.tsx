@@ -10,6 +10,7 @@ import { shrinkImage } from "@/lib/upload-client";
 import { Modal, ConfirmDialog, AlertModal } from "@/components/console/confirm-dialog";
 import { useCurrentUser } from "@/components/console/current-user";
 import { isValidPhoneLocal, PHONE_HINT } from "@/lib/phone";
+import { BaminiInput, BaminiToggle, useBaminiTyping } from "@/components/keda/bamini-input";
 
 export default function StudentProfilePage() {
   const params = useParams();
@@ -440,8 +441,9 @@ function EditStudentModal({ student, onClose, onSaved }: { student: any; onClose
     name: student.name,
     school: student.school ?? "",
     address: student.address ?? "",
-    guardianName: student.guardianName,
-    guardianPhone: student.guardianPhone,
+    // Empty for a student brought in from a class list: only the name and index number are known.
+    guardianName: student.guardianName ?? "",
+    guardianPhone: student.guardianPhone ?? "",
     grade: String(student.grade),
     batchId: student.batchId?._id ?? "",
     isActive: student.isActive !== false,
@@ -449,6 +451,7 @@ function EditStudentModal({ student, onClose, onSaved }: { student: any; onClose
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [bamini, setBamini] = useBaminiTyping();
 
   useEffect(() => {
     fetch("/api/batches").then(r => r.json() as any).then(d => setBatches(d.batches || []));
@@ -483,10 +486,11 @@ function EditStudentModal({ student, onClose, onSaved }: { student: any; onClose
           <button onClick={onClose} className="cursor-pointer text-muted-foreground hover:text-foreground"><X size={20} /></button>
         </div>
         <form onSubmit={save} className="space-y-4">
-          <div><label className="field-label">Full Name</label><input required className="field" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-          <div><label className="field-label">School</label><input className="field" value={form.school} onChange={e => setForm({ ...form, school: e.target.value })} /></div>
-          <div><label className="field-label">Address</label><input className="field" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
-          <div><label className="field-label">Guardian Name</label><input required className="field" value={form.guardianName} onChange={e => setForm({ ...form, guardianName: e.target.value })} /></div>
+          <BaminiToggle on={bamini} onChange={setBamini} />
+          <div><label className="field-label">Full Name</label><BaminiInput bamini={bamini} required className="field" value={form.name} onValueChange={v => setForm(prev => ({ ...prev, name: v }))} /></div>
+          <div><label className="field-label">School</label><BaminiInput bamini={bamini} className="field" value={form.school} onValueChange={v => setForm(prev => ({ ...prev, school: v }))} /></div>
+          <div><label className="field-label">Address</label><BaminiInput bamini={bamini} className="field" value={form.address} onValueChange={v => setForm(prev => ({ ...prev, address: v }))} /></div>
+          <div><label className="field-label">Guardian Name</label><BaminiInput bamini={bamini} required className="field" value={form.guardianName} onValueChange={v => setForm(prev => ({ ...prev, guardianName: v }))} /></div>
           <div>
             <label className="field-label">Guardian Phone</label>
             <input

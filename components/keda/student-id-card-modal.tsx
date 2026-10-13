@@ -4,7 +4,22 @@ import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { Download, Printer } from "lucide-react";
 
-type CardStudent = { name: string; qrCode: string; registrationNumber?: string; grade: number; batchId?: { name?: string } | string; photoUrl?: string };
+type CardBatch = { name?: string; year?: number; grades?: number[]; autoPromote?: boolean };
+type CardStudent = { name: string; qrCode: string; registrationNumber?: string; grade: number; batchId?: CardBatch | string; photoUrl?: string };
+
+/**
+ * "4 & 5 (2026/27)" for a student whose batch carries them up through its
+ * grades (`autoPromote`): the card is printed once, so it names the whole
+ * course rather than a grade that is out of date after January. Any other
+ * student — no batch, or a batch that merely teaches two grades side by side —
+ * gets their own grade.
+ */
+function gradeLine(student: CardStudent, batch?: CardBatch) {
+  const grades = [...(batch?.grades ?? [])].sort((a, b) => a - b);
+  if (!batch?.autoPromote || !batch.year || grades.length < 2 || !grades.includes(student.grade)) return String(student.grade);
+  const firstYear = batch.year - (grades.length - 1);
+  return `${grades.join(" & ")} (${firstYear}/${String(batch.year % 100).padStart(2, "0")})`;
+}
 
 // CR80 card proportions (85.6 × 54 mm) at roughly 300 dpi.
 const W = 1012;
@@ -152,15 +167,27 @@ async function drawCard(canvas: HTMLCanvasElement, student: CardStudent) {
   fitText(ctx, student.registrationNumber ?? "—", family, 800, 46, 30, textWidth);
   ctx.fillText(student.registrationNumber ?? "—", left, 394, textWidth);
 
-  const batchName = typeof student.batchId === "object" ? student.batchId?.name : undefined;
+  const batch = typeof student.batchId === "object" ? student.batchId : undefined;
+  const grade = gradeLine(student, batch);
   label("GRADE", left, 448);
-  if (batchName) label("BATCH", left + 120, 448);
   ctx.fillStyle = INK;
   ctx.font = `700 34px ${family}`;
-  ctx.fillText(String(student.grade), left, 490);
-  if (batchName) {
-    fitText(ctx, batchName, family, 700, 34, 20, textWidth - 120);
-    ctx.fillText(batchName, left + 120, 490, textWidth - 120);
+  // The batch sits beside the grade, after however much room the grade took.
+  const batchLeft = left + Math.max(120, Math.ceil(ctx.measureText(grade).width) + 32);
+  ctx.fillText(grade, left, 490);
+  if (batch?.name) {
+    const room = left + textWidth - batchLeft;
+    if (room >= 200) {
+      label("BATCH", batchLeft, 448);
+      ctx.fillStyle = INK;
+      fitText(ctx, batch.name, family, 700, 34, 20, room);
+      ctx.fillText(batch.name, batchLeft, 490, room);
+    } else {
+      // A grade that spells out the course leaves no room beside it: the batch goes on its own line below.
+      ctx.fillStyle = "#4A5878";
+      fitText(ctx, batch.name, family, 600, 24, 16, textWidth);
+      ctx.fillText(batch.name, left, 528, textWidth);
+    }
   }
 
   // The club's colours as a footer thread back to Kavery Sports Club.

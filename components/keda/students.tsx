@@ -8,6 +8,8 @@ import { StudentIdCardModal } from "@/components/keda/student-id-card-modal";
 import { Modal, ConfirmDialog, AlertModal } from "@/components/console/confirm-dialog";
 import { useCurrentUser } from "@/components/console/current-user";
 import { isValidPhoneLocal, PHONE_HINT } from "@/lib/phone";
+import { shrinkImage } from "@/lib/upload-client";
+import { BaminiInput, BaminiToggle, useBaminiTyping } from "@/components/keda/bamini-input";
 
 export default function StudentsPage() {
   return (
@@ -29,6 +31,8 @@ function StudentsPageContent() {
   const [filterGrade, setFilterGrade] = useState(searchParams.get("grade") ?? "");
   const router = useRouter();
   const { user } = useCurrentUser();
+  // Names, schools and addresses are kept in Tamil, typed with Bamini keys.
+  const [bamini, setBamini] = useBaminiTyping();
 
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [blockedDeleteMessage, setBlockedDeleteMessage] = useState<string | null>(null);
@@ -46,6 +50,25 @@ function StudentsPageContent() {
   });
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [registering, setRegistering] = useState(false);
+
+  // Optional photo for the ID card. It is kept in the browser until the student
+  // exists, then sent to the same private route the student's page uses.
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoWarning, setPhotoWarning] = useState<string | null>(null);
+
+  const pickPhoto = (file?: File | null) => {
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhoto(file ?? null);
+    setPhotoPreview(file ? URL.createObjectURL(file) : null);
+  };
+
+  const closeRegistration = () => {
+    setIsModalOpen(false);
+    setPhoneError(null);
+    pickPhoto(null);
+  };
 
   // Inline "create new batch" — reached from the Batch select below when no
   // batch fits yet, instead of having to leave the registration form.
@@ -90,6 +113,7 @@ function StudentsPageContent() {
       return;
     }
     setPhoneError(null);
+    setRegistering(true);
     try {
       const res = await fetch("/api/students", {
         method: "POST",
@@ -97,7 +121,13 @@ function StudentsPageContent() {
         body: JSON.stringify({ ...formData, grade: Number(formData.grade) }),
       });
       if (res.ok) {
-        setIsModalOpen(false);
+        const { student } = await res.json() as any;
+        // The student is registered whatever happens to the photo; a failed upload is reported, not rolled back.
+        if (photo) {
+          const failure = await uploadPhoto(student._id, photo);
+          if (failure) setPhotoWarning(`${student.name} was registered, but the photo was not saved: ${failure} Add it from the student's page.`);
+        }
+        closeRegistration();
         setFormData({ name: "", school: "", address: "", guardianName: "", guardianPhone: "", batchId: batches[0]?._id || "", grade: "3" });
         fetchData();
       } else {
@@ -106,6 +136,21 @@ function StudentsPageContent() {
       }
     } catch (e: any) {
       setFormError(e instanceof Error ? e.message : "Failed to register student");
+    } finally {
+      setRegistering(false);
+    }
+  };
+
+  // A phone photo is shrunk in the browser first; the server then checks it really is an image.
+  const uploadPhoto = async (studentId: string, file: File): Promise<string | null> => {
+    try {
+      const body = new FormData();
+      body.append("photo", await shrinkImage(file));
+      const res = await fetch(`/api/students/${studentId}/photo`, { method: "POST", body });
+      if (res.ok) return null;
+      return ((await res.json().catch(() => ({}))) as any).error || "The photo could not be uploaded.";
+    } catch {
+      return "The photo could not be uploaded.";
     }
   };
 
@@ -206,12 +251,12 @@ function StudentsPageContent() {
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-          <input 
-            type="text" 
-            placeholder="Search students by name..." 
+          <BaminiInput
+            bamini={bamini}
+            placeholder="Search students by name..."
             className="field pl-10"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onValueChange={setSearchQuery}
           />
         </div>
         <select
@@ -235,6 +280,8 @@ function StudentsPageContent() {
           ))}
         </select>
       </div>
+      {/* Also decides how the search box reads the keys. */}
+      <BaminiToggle on={bamini} onChange={setBamini} className="-mt-2" />
 
       {loading ? (
         <div className="flex justify-center p-12"><Loader2 className="animate-spin text-muted-foreground" size={32} /></div>
@@ -263,7 +310,19 @@ function StudentsPageContent() {
                     className="hover:bg-muted transition-colors text-foreground cursor-pointer"
                   >
                     <td className="px-6 py-4 font-mono text-xs">{sys.registrationNumber ?? "—"}</td>
-                    <td className="px-6 py-4 font-medium">{sys.name}</td>
+                    <td className="px-6 py-4 font-medium">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-sm font-bold text-primary">
+                          {sys.photoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element -- a private file behind the signed-in route
+                            <img src={sys.photoUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+                          ) : (
+                            sys.name.charAt(0)
+                          )}
+                        </span>
+                        {sys.name}
+                      </div>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-1">
                         <span className="font-bold text-foreground">{sys.batchId?.name || 'No Batch'}</span>
@@ -328,13 +387,39 @@ function StudentsPageContent() {
       {/* Registration Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-card rounded-3xl max-w-lg w-full p-6 sm:p-8 border border-border shadow-2xl">
+          <div className="bg-card rounded-3xl max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto p-6 sm:p-8 border border-border shadow-2xl">
             <h3 className="text-xl font-bold text-foreground mb-6">Register New Student</h3>
             <form onSubmit={handleCreate} className="space-y-4">
-              <div><label className="field-label">Full Name</label><input required className="field" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>
-              <div><label className="field-label">School</label><input className="field" value={formData.school} onChange={e => setFormData({...formData, school: e.target.value})} /></div>
-              <div><label className="field-label">Address</label><input className="field" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} /></div>
-              <div><label className="field-label">Guardian Name</label><input required className="field" value={formData.guardianName} onChange={e => setFormData({...formData, guardianName: e.target.value})} /></div>
+              {/* The photo is printed on the ID card. */}
+              <div className="flex items-center gap-4">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
+                  {photoPreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- a local preview of the chosen file
+                    <img src={photoPreview} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-2xl font-bold text-primary">{formData.name.trim().charAt(0)}</span>
+                  )}
+                </div>
+                <div className="text-sm">
+                  <div className="flex items-center gap-3">
+                    <label className="cursor-pointer font-semibold text-primary underline underline-offset-4">
+                      {photo ? "Change photo" : "Add photo"}
+                      <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { if (e.target.files?.[0]) pickPhoto(e.target.files[0]); e.target.value = ""; }} />
+                    </label>
+                    {photo && (
+                      <button type="button" onClick={() => pickPhoto(null)} className="cursor-pointer text-muted-foreground underline underline-offset-4 hover:text-destructive">
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-1 text-muted-foreground">Printed on the ID card. It can be added later.</p>
+                </div>
+              </div>
+              <BaminiToggle on={bamini} onChange={setBamini} />
+              <div><label className="field-label">Full Name</label><BaminiInput bamini={bamini} required className="field" value={formData.name} onValueChange={v => setFormData(prev => ({ ...prev, name: v }))} /></div>
+              <div><label className="field-label">School</label><BaminiInput bamini={bamini} className="field" value={formData.school} onValueChange={v => setFormData(prev => ({ ...prev, school: v }))} /></div>
+              <div><label className="field-label">Address</label><BaminiInput bamini={bamini} className="field" value={formData.address} onValueChange={v => setFormData(prev => ({ ...prev, address: v }))} /></div>
+              <div><label className="field-label">Guardian Name</label><BaminiInput bamini={bamini} required className="field" value={formData.guardianName} onValueChange={v => setFormData(prev => ({ ...prev, guardianName: v }))} /></div>
               <div>
                 <label className="field-label">Guardian Phone</label>
                 <input
@@ -369,8 +454,10 @@ function StudentsPageContent() {
                 </div>
               </div>
               <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => { setIsModalOpen(false); setPhoneError(null); }} className="flex-1 px-4 py-2 border border-border bg-card rounded-xl font-medium text-foreground hover:bg-muted transition-colors">Cancel</button>
-                <button type="submit" className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-medium">Create & Generate QR</button>
+                <button type="button" onClick={closeRegistration} disabled={registering} className="flex-1 px-4 py-2 border border-border bg-card rounded-xl font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50">Cancel</button>
+                <button type="submit" disabled={registering} className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground rounded-xl font-medium">
+                  {registering ? <Loader2 className="animate-spin mx-auto" size={18} /> : "Create & Generate QR"}
+                </button>
               </div>
             </form>
           </div>
@@ -470,6 +557,7 @@ function StudentsPageContent() {
 
       <AlertModal open={deleteAlert !== null} onClose={() => setDeleteAlert(null)} title="Something went wrong" description={deleteAlert ?? undefined} tone="danger" />
       <AlertModal open={formError !== null} onClose={() => setFormError(null)} title="Failed to register student" description={formError ?? undefined} tone="danger" />
+      <AlertModal open={photoWarning !== null} onClose={() => setPhotoWarning(null)} title="Registered without a photo" description={photoWarning ?? undefined} />
     </div>
   );
 }

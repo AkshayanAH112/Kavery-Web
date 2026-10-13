@@ -102,9 +102,17 @@ database page returning 500 until it is restarted.
   anything public.
 - **Student import** (`/console/students/import`): the sheet is read in the browser, converted from
   the Bamini font encoding by `lib/keda/bamini.ts`, previewed and edited, and only then posted to
-  `/api/students/import`. Imported students have `guardianName`/`guardianPhone` = `""` (the columns
-  are NOT NULL); `studentDoc` reports that as missing. The club's own sheet must never be copied
-  into the repo — test with synthetic data.
+  `/api/students/import`. Only the index number and the name beside it are read; an index number
+  with no name is not a student yet and is left out (the preview says how many). Imported students
+  have `guardianName`/`guardianPhone` = `""` (the columns are NOT NULL); `studentDoc` reports that
+  as missing. The club's own sheet must never be copied into the repo — test with synthetic data.
+- **Student details are typed in Tamil with Bamini keys** (`components/keda/bamini-input.tsx`): use
+  `BaminiInput` for any free-text field about a student (name, school, address, guardian, the search
+  box), never for phone or index numbers. It converts each key as it is typed, so only Unicode Tamil
+  is ever stored. A key cannot be converted alone ("n", "f", "h" are one syllable), which is why the
+  component keeps the run of keys typed so far (`typeBamini()` in `lib/keda/bamini.ts`). The switch
+  (`BaminiToggle`, remembered per device, on by default) is needed for English: with it on, a comma
+  is the letter இ.
 - **Yearly promotion** (`lib/keda/promotion.ts`, `POST /api/cron/promote-students`): moves grades
   highest first and stamps each batch per year in `counters`. Both guards fix real faults in the
   KCSC job it came from (a Grade 3 student promoted twice in one run; a second run promoting
@@ -147,10 +155,16 @@ database page returning 500 until it is restarted.
     link becomes the subscriber's language.
   - A student brought in by the spreadsheet import has no phone on file, so only the card opens them
     until staff add a guardian phone.
+- **The grade on a student card** (`gradeLine()` in `components/keda/student-id-card-modal.tsx`) is
+  the whole course — "4 & 5 (2026/27)" — when the student's batch has `autoPromote` on, because the
+  card is printed once and the student moves up in January. A batch that only teaches two grades
+  side by side (no `autoPromote`) still prints the student's own grade.
 - **Student photos** are for the ID card and are private, like members' files (`lib/private-files.ts`):
   stored under `students/` in R2, added or replaced on the student's page
   (`POST /api/students/[id]/photo`), and read back only through `GET /api/students/[id]/photo` by
-  staff who work with the classes. A photo address sent by a client is never stored, and the parent
+  staff who work with the classes. The Register Student form can take one too: it creates the
+  student first and then posts the photo to that same route, so a failed upload leaves a registered
+  student without a photo rather than no student. A photo address sent by a client is never stored, and the parent
   page never includes the photo.
 - **Site details** (`lib/site-settings.ts`, `/api/site-settings`, console → Site details): contact
   lines, the About page's text in both languages, class times and office bearers. The About page

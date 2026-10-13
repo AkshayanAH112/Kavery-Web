@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, FileSpreadsheet, Upload } from "lucide-react";
 import { baminiToUnicode, looksLikeBamini } from "@/lib/keda/bamini";
 import { findStudents } from "@/lib/keda/import-sheet";
+import { BaminiInput } from "@/components/keda/bamini-input";
 
 type Batch = { _id: string; name: string; year: number; grades: number[] };
 type Row = { registrationNumber: string; original: string; name: string; grade: number; include: boolean };
@@ -14,6 +15,7 @@ export default function StudentImportScreen() {
   const [batchId, setBatchId] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [fileName, setFileName] = useState("");
+  const [leftOut, setLeftOut] = useState(0);
   const [convert, setConvert] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,17 +43,18 @@ export default function StudentImportScreen() {
       const XLSX = await import("xlsx");
       const book = XLSX.read(await file.arrayBuffer());
       const cells = book.SheetNames.flatMap((name) => XLSX.utils.sheet_to_json<unknown[]>(book.Sheets[name], { header: 1, raw: false, defval: "" }));
-      const students = findStudents(cells);
+      const { students, unnamed } = findStudents(cells);
+      setLeftOut(unnamed);
       if (students.length === 0) {
         setRows([]);
-        setError("No index numbers like KEDA/27/1000 were found in that file.");
+        setError(unnamed > 0 ? "That file has index numbers but no names beside them, so there is nobody to import." : "No index numbers like KEDA/27/1000 were found in that file.");
         return;
       }
       // Decide once for the whole file: a list is typed in Bamini or it is not.
       const bamini = students.some((s) => looksLikeBamini(s.original));
       setConvert(bamini);
       setFileName(file.name);
-      setRows(students.map((s) => ({ ...s, name: bamini ? baminiToUnicode(s.original) : s.original, grade: grades[grades.length - 1] ?? 5, include: s.original !== "" })));
+      setRows(students.map((s) => ({ ...s, name: bamini ? baminiToUnicode(s.original) : s.original, grade: grades[grades.length - 1] ?? 5, include: true })));
     } catch {
       setError("That file could not be read. Save it as .xlsx and try again.");
     }
@@ -162,6 +165,7 @@ export default function StudentImportScreen() {
           </div>
           <p className="border-b border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
             Read each name before importing. The conversion is automatic and a rare letter can come out wrong; type over any name to correct it.
+            {leftOut > 0 && ` ${leftOut} index number${leftOut === 1 ? "" : "s"} in the file had no name beside ${leftOut === 1 ? "it" : "them"} and ${leftOut === 1 ? "was" : "were"} left out.`}
           </p>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[40rem] text-left text-sm">
@@ -181,7 +185,8 @@ export default function StudentImportScreen() {
                     </td>
                     <td className="tabular whitespace-nowrap px-4 py-2 font-mono text-xs">{row.registrationNumber}</td>
                     <td className="px-4 py-2">
-                      <input className="field" lang="ta" aria-label={`Name for ${row.registrationNumber}`} value={row.name} placeholder="No name in the file" onChange={(e) => update(i, { name: e.target.value })} />
+                      {/* A correction is typed the way the list was: with Bamini keys when the file is in Bamini. */}
+                      <BaminiInput bamini={convert} className="field" aria-label={`Name for ${row.registrationNumber}`} value={row.name} onValueChange={(name) => update(i, { name })} />
                     </td>
                     <td className="px-4 py-2">
                       <select className="field !w-auto" aria-label={`Grade for ${row.registrationNumber}`} value={row.grade} onChange={(e) => update(i, { grade: Number(e.target.value) })}>

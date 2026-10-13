@@ -136,6 +136,84 @@ export function baminiToUnicode(input: string): string {
   return out;
 }
 
+/* ------------------------------------------------------------------ typing */
+
+/** Keys that mean nothing until the next one arrives: a sign typed before its consonant, and "h", which is ா or the start of ர். */
+const WAITING_SIGNS: Record<string, string> = { ...PREFIX_SIGNS, h: "ா" };
+
+/** While a word is still being typed, a key waiting for the next one is shown as its sign, as the Bamini font draws it. */
+function baminiWhileTyping(raw: string): string {
+  const out = baminiToUnicode(raw);
+  const last = raw.at(-1) ?? "";
+  return last in WAITING_SIGNS && out.endsWith(last) ? out.slice(0, -1) + WAITING_SIGNS[last] : out;
+}
+
+const flip = (table: Record<string, string>) => Object.fromEntries(Object.entries(table).map(([key, tamil]) => [tamil, key]));
+// Reversed first, so that where two keys draw the same letter (ஷ) the first one listed is the one used.
+const KEY_OF_CONSONANT: Record<string, string> = flip(Object.fromEntries(Object.entries(CONSONANTS).reverse()));
+const KEY_OF_WAITING_SIGN: Record<string, string> = flip(WAITING_SIGNS);
+/** கு, நு… — the first key of a two-key letter such as நூ ("E}") has to be found again when typing carries on. */
+const KEY_OF_SYLLABLE: Record<string, string> = flip(Object.fromEntries(Object.entries(SYLLABLES).filter(([key]) => key.length === 1)));
+const KEYS_OF_SIGN: Record<string, [before: string, after: string]> = {
+  "ா": ["", "h"], "ி": ["", "p"], "ீ": ["", "P"], "்": ["", ";"],
+  "ெ": ["n", ""], "ே": ["N", ""], "ை": ["i", ""], "ொ": ["n", "h"], "ோ": ["N", "h"], "ௌ": ["n", "s"],
+};
+
+/**
+ * The keys that would type the last syllable of text that is already Tamil, so
+ * typing can carry on from it: a sign added to a letter that is already in the
+ * box has to join that letter. Null when the text does not end in a syllable
+ * this can retype (then the next key simply starts fresh).
+ */
+function lastSyllableAsBamini(text: string): { length: number; keys: string } | null {
+  const last = text.at(-1) ?? "";
+  const before = text.at(-2) ?? "";
+  if (last in KEY_OF_CONSONANT) return { length: 1, keys: KEY_OF_CONSONANT[last] };
+  if (before + last in KEY_OF_SYLLABLE) return { length: 2, keys: KEY_OF_SYLLABLE[before + last] };
+  // A sign with no consonant under it is one that was still waiting when the typing was interrupted.
+  if (last in KEY_OF_WAITING_SIGN && !(before in KEY_OF_CONSONANT)) return { length: 1, keys: KEY_OF_WAITING_SIGN[last] };
+  const sign = KEYS_OF_SIGN[last];
+  return sign && before in KEY_OF_CONSONANT ? { length: 2, keys: sign[0] + KEY_OF_CONSONANT[before] + sign[1] } : null;
+}
+
+/**
+ * A stretch of keys typed in one go: `raw` is what was pressed and `out` what
+ * the box shows for it, from `start`. It is kept because a key cannot be read
+ * on its own — "n", "f", "h" are one syllable, கொ.
+ */
+export type BaminiRun = { start: number; raw: string; out: string };
+export type BaminiTyped = { value: string; caret: number; run: BaminiRun | null };
+
+/** The run still describes what sits just before the caret (nobody clicked elsewhere or edited the text since). */
+const runIsLive = (value: string, start: number, end: number, run: BaminiRun | null): run is BaminiRun =>
+  !!run && start === end && run.start + run.out.length === start && value.slice(run.start, start) === run.out;
+
+/** Keys typed (or text pasted) over the selection `start`–`end` of a text box holding `value`. */
+export function typeBamini(value: string, start: number, end: number, keys: string, run: BaminiRun | null): BaminiTyped {
+  let from = start;
+  let raw = keys;
+  if (runIsLive(value, start, end, run)) {
+    from = run.start;
+    raw = run.raw + keys;
+  } else {
+    const syllable = lastSyllableAsBamini(value.slice(0, start));
+    if (syllable) {
+      from = start - syllable.length;
+      raw = syllable.keys + keys;
+    }
+  }
+  const out = baminiWhileTyping(raw);
+  return { value: value.slice(0, from) + out + value.slice(end), caret: from + out.length, run: { start: from, raw, out } };
+}
+
+/** Backspace straight after typing takes back the last key, not the last Unicode character. Null = leave it to the browser. */
+export function backspaceBamini(value: string, start: number, end: number, run: BaminiRun | null): BaminiTyped | null {
+  if (!runIsLive(value, start, end, run)) return null;
+  const raw = run.raw.slice(0, -1);
+  const out = baminiWhileTyping(raw);
+  return { value: value.slice(0, run.start) + out + value.slice(end), caret: run.start + out.length, run: raw ? { start: run.start, raw, out } : null };
+}
+
 /**
  * Whether a cell looks like Bamini rather than real text. Bamini Tamil is full
  * of pulli marks, which are typed as semicolons — something a name written in
