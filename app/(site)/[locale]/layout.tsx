@@ -58,6 +58,9 @@ export async function generateMetadata({ params }: LayoutProps<"/[locale]">): Pr
     formatDetection: { telephone: true, date: true, address: true, email: true },
     appleWebApp: { capable: true, title: "Kavery", statusBarStyle: "black-translucent" },
     icons: SITE_ICONS,
+    verification: {
+      google: "googlea735d44a786fccc9",
+    },
     alternates: {
       canonical: `/${locale}`,
       languages: { en: "/en", ta: "/ta", "x-default": "/en" },
