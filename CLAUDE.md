@@ -23,7 +23,7 @@ npm run db:seed       # create the first administrator from .dev.vars
 npm run db:demo       # local only: clearly-labelled demo rows so the dashboard has data (db:demo:clear removes them)
 npm run db:demo:cricket  # local only, needs `npm run dev` running: plays demo matches through the real scoring API (…:clear removes them)
 npm run db:demo:content  # local only, needs `npm run dev` running: demo posts and an album, uploaded to local R2 (…:clear removes them)
-# Demo students open on the parent page: KEDA/99/1001–1012 with phone 0770000000, or card code KEDA-5-DE000001–12.
+# Demo students open on the parent page: KEDA/80/1001–1012 with phone 0770000000, or card code KEDA-5-DE000001–12.
 npm run db:demo:members  # local only, needs `npm run dev` running: demo applications, members and a renewal (…:clear removes them)
 ```
 
@@ -34,7 +34,19 @@ Workers runtime. Before calling a change done, run `npm run preview` and load a 
 `@tailwindcss/typography`, referenced from CSS), restarting is not enough: Turbopack keeps the failed
 lookup in `.next/`. Stop the server, delete `.next/`, start it again.
 
-**Stop `npm run dev` before `npm run preview` / `npm run deploy`.** The dev server holds a lock on
+**Do not add `loading.tsx` files.** They make every page under them stream, so a missing page
+answers 200 instead of 404 and a page-level redirect (a wrong role in the console, the old `/results`
+address) stops being a real redirect. The loading bar and waiting screen between pages are done in
+the browser by `components/RouteProgress.tsx`, mounted in both root layouts.
+
+**Stop `npm run dev` before `npm run preview` / `npm run deploy`.** If the dev server cannot be
+stopped, copy the source to another folder (`git ls-files -co --exclude-standard`), run `npm ci`
+there and deploy from the copy — the build only needs the source and `wrangler.jsonc`.
+
+**The live Worker** is `kavery-sports-club` (D1 `kavery-db`, R2 bucket `kaverysc`). In `wrangler.jsonc`,
+`preview_database_id` and `preview_bucket_name` are what local development uses — leave them, or
+`npm run dev` and every `--local` command start pointing at a new, empty local database. Secrets live on
+the Worker (`wrangler secret put`), never in the repository. The dev server holds a lock on
 `.open-next/`, so the build fails with `EPERM`. And never stop a stray `workerd.exe` by name to "clean
 up": the dev server's D1/R2 bindings run in one, and killing it leaves the server up but every
 database page returning 500 until it is restarted.
@@ -135,6 +147,11 @@ database page returning 500 until it is restarted.
     link becomes the subscriber's language.
   - A student brought in by the spreadsheet import has no phone on file, so only the card opens them
     until staff add a guardian phone.
+- **Student photos** are for the ID card and are private, like members' files (`lib/private-files.ts`):
+  stored under `students/` in R2, added or replaced on the student's page
+  (`POST /api/students/[id]/photo`), and read back only through `GET /api/students/[id]/photo` by
+  staff who work with the classes. A photo address sent by a client is never stored, and the parent
+  page never includes the photo.
 - **Site details** (`lib/site-settings.ts`, `/api/site-settings`, console → Site details): contact
   lines, the About page's text in both languages, class times and office bearers. The About page
   (`/[locale]/about`) shows what was entered and falls back to the standard wording or leaves a line

@@ -3,20 +3,27 @@ import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ArrowRight, BookOpenCheck, ClipboardCheck, HandCoins } from "lucide-react";
 import { AppPanel } from "@/components/pwa/AppPanel";
+import { ExpandShowcase } from "@/components/site/ExpandShowcase";
 import { Hero } from "@/components/site/Hero";
 import { LiveRefresh } from "@/components/site/LiveRefresh";
 import { MatchCard, StatusChip, formatMatchTime, overs, resultLine } from "@/components/site/MatchCard";
 import { CountUp, Parallax, Reveal } from "@/components/site/motion";
+import { formatDate } from "@/components/site/PageShell";
 import { isLocale } from "@/i18n/config";
+import { getAlbums } from "@/lib/content/public";
 import { getSecret } from "@/lib/db";
 import { CLUB, getHomeData, getSettings } from "@/lib/site";
+
+/** How many tiles a showcase row holds. More than five and the closed ones get too thin to read. */
+const SHOWCASE_SIZE = 5;
 
 export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   setRequestLocale(locale);
 
-  const [t, data, settings] = await Promise.all([getTranslations(), getHomeData(), getSettings()]);
+  const [t, data, settings, allAlbums] = await Promise.all([getTranslations(), getHomeData(), getSettings(), getAlbums()]);
+  const albums = allAlbums.slice(0, SHOWCASE_SIZE);
   const base = `/${locale}`;
   const featured = data.featured;
   const featuredLabel = !featured ? null : featured.status === "upcoming" ? t("ticker.next") : featured.status === "completed" ? t("ticker.last") : t("ticker.live");
@@ -256,72 +263,75 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         </div>
       </section>
 
-      {/* News and gallery only exist on the page once there is something in them. */}
-      {data.posts.length > 0 && (
-        <section id="news" className="py-[var(--section-y)]">
-          <div className="container-x">
-            <Reveal>
-              <p className="eyebrow text-brand-text">{t("news.eyebrow")}</p>
-              <h2 className="display mt-4 h-section">{t("news.title")}</h2>
-            </Reveal>
-            <div className="mt-12 grid gap-5 md:grid-cols-3">
-              {data.posts.map((post, i) => (
-                <Reveal key={post.id} delay={i * 0.06}>
-                  <a href={`${base}/news/${post.slug}`} className="group block h-full">
-                  <article className="flex h-full flex-col overflow-hidden rounded-[var(--card-radius)] border border-line bg-surface transition-colors group-hover:border-fg">
-                      {post.coverUrl && (
-                        // eslint-disable-next-line @next/next/no-img-element -- uploads are already resized; the optimizer would only re-compress them
-                        <img src={post.coverUrl} alt="" loading="lazy" className="aspect-[16/10] w-full object-cover" />
-                      )}
-                      <div className="flex flex-1 flex-col p-6">
-                        <p className="eyebrow text-accent">{post.org === "keda" ? t("news.keda") : t("news.ksc")}</p>
-                        <h3 className="mt-3 text-xl font-bold leading-snug">{post.title}</h3>
-                        {post.excerpt && <p className="mt-3 leading-relaxed text-muted-foreground">{post.excerpt}</p>}
-                      </div>
-                    </article>
-                  </a>
-                </Reveal>
-              ))}
-            </div>
-            <div className="mt-10 pl-1">
-              <a href={`${base}/news`} className="btn btn-ghost">
-                <span>
-                  {t("news.all")} <ArrowRight aria-hidden className="h-5 w-5" />
-                </span>
-              </a>
-            </div>
+      {/* News and gallery are always on the page: with something in them they are the showcase rows, without they say what will appear. */}
+      <section id="news" className="py-[var(--section-y)]">
+        <div className="container-x flex flex-wrap items-end justify-between gap-6">
+          <Reveal>
+            <p className="eyebrow text-brand-text">{t("news.eyebrow")}</p>
+            <h2 className="display mt-4 h-section">{t("news.title")}</h2>
+          </Reveal>
+          <a href={`${base}/news`} className="btn btn-ghost">
+            <span>
+              {t("news.all")} <ArrowRight aria-hidden className="h-5 w-5" />
+            </span>
+          </a>
+        </div>
+        {data.posts.length > 0 ? (
+          <div className="mt-8">
+            <ExpandShowcase
+              word={t("news.eyebrow")}
+              items={data.posts.map((post) => ({
+                key: post.id,
+                href: `${base}/news/${post.slug}`,
+                image: post.coverUrl,
+                label: post.org === "keda" ? t("news.keda") : t("news.ksc"),
+                title: post.title,
+                body: post.excerpt ?? undefined,
+                meta: post.publishedAt ? formatDate(new Date(post.publishedAt), locale) : undefined,
+                tone: post.org === "keda" ? ("keda" as const) : ("ksc" as const),
+              }))}
+            />
           </div>
-        </section>
-      )}
+        ) : (
+          <div className="container-x mt-10">
+            <p className="live-card p-8 text-lg text-muted-foreground">{t("news.empty")}</p>
+          </div>
+        )}
+      </section>
 
-      {data.folders.length > 0 && (
-        <section id="gallery" className="border-t border-line py-[var(--section-y)]">
-          <div className="container-x">
-            <Reveal>
-              <p className="eyebrow text-brand-text">{t("gallery.eyebrow")}</p>
-              <h2 className="display mt-4 h-section">{t("gallery.title")}</h2>
-            </Reveal>
-            <div className="mt-12 grid grid-cols-2 gap-4 md:grid-cols-3">
-              {data.folders.map((folder) => (
-                <a key={folder.id} href={`${base}/gallery/${folder.id}`} className="group relative block aspect-[4/3] overflow-hidden rounded-[var(--card-radius)] bg-surface">
-                  {folder.coverUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={folder.coverUrl} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                  )}
-                  <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 pt-10 font-semibold">{folder.name}</span>
-                </a>
-              ))}
-            </div>
-            <div className="mt-10 pl-1">
-              <a href={`${base}/gallery`} className="btn btn-ghost">
-                <span>
-                  {t("gallery.all")} <ArrowRight aria-hidden className="h-5 w-5" />
-                </span>
-              </a>
-            </div>
+      <section id="gallery" className="border-t border-line py-[var(--section-y)]">
+        <div className="container-x flex flex-wrap items-end justify-between gap-6">
+          <Reveal>
+            <p className="eyebrow text-brand-text">{t("gallery.eyebrow")}</p>
+            <h2 className="display mt-4 h-section">{t("gallery.title")}</h2>
+          </Reveal>
+          <a href={`${base}/gallery`} className="btn btn-ghost">
+            <span>
+              {t("gallery.all")} <ArrowRight aria-hidden className="h-5 w-5" />
+            </span>
+          </a>
+        </div>
+        {albums.length > 0 ? (
+          <div className="mt-8">
+            <ExpandShowcase
+              word={t("gallery.eyebrow")}
+              items={albums.map((album) => ({
+                key: album.id,
+                href: `${base}/gallery/${album.id}`,
+                image: album.coverUrl,
+                label: album.org === "keda" ? t("news.keda") : t("news.ksc"),
+                title: album.name,
+                meta: t("gallery.photos", { count: album.imageCount }),
+                tone: album.org === "keda" ? ("keda" as const) : ("ksc" as const),
+              }))}
+            />
           </div>
-        </section>
-      )}
+        ) : (
+          <div className="container-x mt-10">
+            <p className="live-card p-8 text-lg text-muted-foreground">{t("gallery.empty")}</p>
+          </div>
+        )}
+      </section>
 
       {/* Install + notifications */}
       <section id="app" className="relative overflow-hidden bg-brand text-on-brand [clip-path:polygon(0_0,100%_5vw,100%_100%,0_100%)]">

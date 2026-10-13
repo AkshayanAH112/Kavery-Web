@@ -1,5 +1,6 @@
 import { desc, eq, inArray } from "drizzle-orm";
 import { authorize } from "@/lib/auth/guard";
+import { deletePrivateFiles } from "@/lib/private-files";
 import { can } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db";
 import { PHONE_ERROR, attendanceDoc, getBatch, getStudent, isGrade, isRegistrationNumber, isValidLocalPhone, marksForStudent, readBody, reserveRegistrationNumber, studentDoc, text } from "@/lib/keda/server";
@@ -84,7 +85,6 @@ export async function PATCH(request: Request, { params }: RouteContext<"/api/stu
   if (data.school !== undefined) update.school = text(data.school, 160) || null;
   if (data.address !== undefined) update.address = text(data.address, 300) || null;
   if (data.notes !== undefined) update.notes = text(data.notes, 500) || null;
-  if (data.photoUrl !== undefined) update.photoUrl = text(data.photoUrl, 500) || null;
   if (data.isActive !== undefined) update.isActive = !!data.isActive;
   if (data.grade !== undefined) {
     if (!isGrade(Number(data.grade))) return fail("Choose the student's grade");
@@ -139,5 +139,6 @@ export async function DELETE(request: Request, { params }: RouteContext<"/api/st
 
   // One transaction: the student never disappears while their records are left behind.
   await db.batch([db.delete(A).where(eq(A.studentId, student.id)), db.delete(M).where(eq(M.studentId, student.id)), db.delete(L).where(eq(L.studentId, student.id)), db.delete(S).where(eq(S.id, student.id))]);
+  await deletePrivateFiles([student.photoKey]);
   return Response.json({ success: true });
 }

@@ -22,7 +22,7 @@ Sign in at `/login` with the `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` you pu
 ```bash
 npx wrangler login
 npx wrangler d1 create kavery-db          # paste the database_id it prints into wrangler.jsonc
-npx wrangler r2 bucket create kavery-media
+npx wrangler r2 bucket create kaverysc    # the bucket name in wrangler.jsonc
 npx wrangler secret put AUTH_SECRET       # a random string, 32+ characters
 npx wrangler secret put VAPID_PUBLIC_KEY
 npx wrangler secret put VAPID_PRIVATE_KEY

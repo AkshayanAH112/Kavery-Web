@@ -32,7 +32,7 @@ export async function getAlbum(id: string) {
   return images.length ? { folder, images } : null;
 }
 
-/** Whether there is anything to link to — the site navigation only offers News and Gallery once there is. */
+/** Whether there is anything to link to — the About page only offers "KEDA news" and "KEDA photos" once there is. */
 export async function getContentPresence() {
   const db = getDb();
   const [posts, photos] = await Promise.all([db.$count(P, eq(P.status, "published")), db.$count(G)]);

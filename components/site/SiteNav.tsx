@@ -53,9 +53,9 @@ export function SiteNav({ home, links, app, language, labels }: Props) {
         {/* Six items stop fitting at tablet width (sooner in Tamil), so the inline links start at xl. */}
         <nav className="hidden items-center gap-8 xl:flex">
           {links.map((link) => (
-            <a key={link.href} href={link.href} className="text-[0.9375rem] font-medium text-muted-foreground transition-colors hover:text-fg">
+            <Link key={link.href} href={link.href} className="text-[0.9375rem] font-medium text-muted-foreground transition-colors hover:text-fg">
               {link.label}
-            </a>
+            </Link>
           ))}
         </nav>
 
@@ -88,9 +88,9 @@ export function SiteNav({ home, links, app, language, labels }: Props) {
         <div id="site-menu" className="fixed inset-x-0 bottom-0 top-[var(--nav-h)] overflow-y-auto bg-bg xl:hidden">
           <nav className="container-x flex flex-col py-6">
             {links.map((link) => (
-              <a key={link.href} href={link.href} onClick={() => setOpen(false)} className="display border-b border-line py-5 text-4xl">
+              <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className="display border-b border-line py-5 text-4xl">
                 {link.label}
-              </a>
+              </Link>
             ))}
             <div className="mt-8 flex flex-wrap items-center gap-5 pl-1">
               <a href={app.href} onClick={() => setOpen(false)} className="btn btn-accent">

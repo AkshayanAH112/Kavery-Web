@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -5,10 +6,11 @@ import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { fontVariables } from "@/app/fonts";
 import { ServiceWorker } from "@/components/pwa/ServiceWorker";
+import { RouteProgress } from "@/components/RouteProgress";
 import { SiteNav } from "@/components/site/SiteNav";
 import { isLocale } from "@/i18n/config";
-import { getContentPresence } from "@/lib/content/public";
 import { CLUB, getSettings } from "@/lib/site";
+import { SITE_ICONS } from "@/lib/site-icons";
 import "@/app/globals.css";
 
 // Everything on the public site is read from the database per request.
@@ -24,7 +26,7 @@ export async function generateMetadata({ params }: LayoutProps<"/[locale]">): Pr
     title: t("title"),
     description: t("description"),
     appleWebApp: { capable: true, title: "Kavery", statusBarStyle: "black-translucent" },
-    icons: { apple: "/icons/apple-touch-icon.png" },
+    icons: SITE_ICONS,
     alternates: { languages: { en: "/en", ta: "/ta", "x-default": "/en" } },
   };
 }
@@ -34,15 +36,16 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[lo
   if (!isLocale(locale)) notFound();
   setRequestLocale(locale);
 
-  const [t, settings, has] = await Promise.all([getTranslations(), getSettings(), getContentPresence()]);
+  const [t, settings] = await Promise.all([getTranslations(), getSettings()]);
   const base = `/${locale}`;
   const other = locale === "en" ? "ta" : "en";
   const links = [
     { href: `${base}#matches`, label: t("nav.matches") },
     { href: `${base}/about`, label: t("nav.about") },
     { href: `${base}#education`, label: t("nav.education") },
-    ...(has.news ? [{ href: `${base}/news`, label: t("nav.news") }] : []),
-    ...(has.gallery ? [{ href: `${base}/gallery`, label: t("nav.gallery") }] : []),
+    // Always offered, even before the first post or album: the club asked for them to be findable.
+    { href: `${base}/news`, label: t("nav.news") },
+    { href: `${base}/gallery`, label: t("nav.gallery") },
     { href: `${base}/membership`, label: t("nav.join") },
   ];
 
@@ -112,6 +115,10 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[lo
               </div>
             </div>
           </footer>
+        {/* Reads the address bar, so it sits in its own boundary and never holds a page back. */}
+        <Suspense fallback={null}>
+          <RouteProgress />
+        </Suspense>
         <ServiceWorker />
       </body>
     </html>

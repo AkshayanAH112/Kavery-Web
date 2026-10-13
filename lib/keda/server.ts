@@ -49,7 +49,8 @@ export function studentDoc(s: StudentRow, opts: { batch?: BatchRow | null; brief
     _id: s.id,
     name: s.name,
     grade: s.grade,
-    photoUrl: s.photoUrl ?? undefined,
+    // A private file behind /api/students/[id]/photo. The suffix changes when the photo does, so a new one is not hidden by the browser's copy.
+    photoUrl: s.photoKey ? `/api/students/${s.id}/photo?v=${s.photoKey.slice(-12, -4)}` : undefined,
     qrCode: s.qrCode,
     registrationNumber: s.registrationNumber ?? undefined,
     registrationDate: iso(s.registrationDate),

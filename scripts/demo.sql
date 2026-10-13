@@ -8,7 +8,7 @@ VALUES ('demo-batch', 'Demo batch 2026/27', 2027, '[4,5]', 0, strftime('%s','now
 
 WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 24)
 INSERT OR IGNORE INTO students (id, name, guardian_name, guardian_phone, grade, qr_code, registration_number, registration_date, batch_id, is_active, total_leaves, current_leave_cycle, cycle_generation, created_at, updated_at)
-SELECT 'demo-student-' || i, 'Demo Student ' || i, 'Demo Guardian ' || i, '0770000000', 5, 'KEDA-5-DE' || substr('000000' || i, -6), 'KEDA/99/' || (1000 + i), strftime('%s','now') * 1000 - 60 * 86400000, 'demo-batch', 1, 0, 0, 0, strftime('%s','now') * 1000, strftime('%s','now') * 1000
+SELECT 'demo-student-' || i, 'Demo Student ' || i, 'Demo Guardian ' || i, '0770000000', 5, 'KEDA-5-DE' || substr('000000' || i, -6), 'KEDA/80/' || (1000 + i), strftime('%s','now') * 1000 - 60 * 86400000, 'demo-batch', 1, 0, 0, 0, strftime('%s','now') * 1000, strftime('%s','now') * 1000
 FROM n;
 
 WITH d(k) AS (VALUES (0), (1), (2), (4), (5))
@@ -32,8 +32,8 @@ SET total_leaves = (SELECT count(*) FROM attendance a WHERE a.student_id = stude
 WHERE id LIKE 'demo-%';
 
 INSERT OR IGNORE INTO leave_alerts (id, student_id, registration_number, student_name, type, cycle_generation, leave_count, leave_dates, status, created_at, updated_at) VALUES
-  ('demo-alert-1', 'demo-student-6', 'KEDA/99/1006', 'Demo Student 6', 'admin_critical', 0, 3, '[]', 'pending', strftime('%s','now') * 1000, strftime('%s','now') * 1000),
-  ('demo-alert-2', 'demo-student-12', 'KEDA/99/1012', 'Demo Student 12', 'parent_warning', 0, 2, '[]', 'pending', strftime('%s','now') * 1000 - 3600000, strftime('%s','now') * 1000);
+  ('demo-alert-1', 'demo-student-6', 'KEDA/80/1006', 'Demo Student 6', 'admin_critical', 0, 3, '[]', 'pending', strftime('%s','now') * 1000, strftime('%s','now') * 1000),
+  ('demo-alert-2', 'demo-student-12', 'KEDA/80/1012', 'Demo Student 12', 'parent_warning', 0, 2, '[]', 'pending', strftime('%s','now') * 1000 - 3600000, strftime('%s','now') * 1000);
 
 -- Cricket demo data is not here: it is played through the scoring API by scripts/demo-cricket.mjs,
 -- so every score has real deliveries behind it (npm run db:demo:cricket).
@@ -54,8 +54,8 @@ INSERT OR IGNORE INTO push_log (id, topic, title, body, delivered, failed, creat
   ('demo-push-1', 'cricket', 'Demo: toss in 15 minutes', NULL, 18, 1, strftime('%s','now') * 1000 - 5400000),
   ('demo-push-2', 'keda', 'Demo: no class this Saturday', NULL, 31, 0, strftime('%s','now') * 1000 - 2 * 86400000);
 
--- The demo students can be opened on the parent page (/en/parents): index numbers KEDA/99/1001 to
--- KEDA/99/1012 with phone 0770000000, or card codes KEDA-5-DE000001 to KEDA-5-DE000012. Exam year 99
+-- The demo students can be opened on the parent page (/en/parents): index numbers KEDA/80/1001 to
+-- KEDA/80/1012 with phone 0770000000, or card codes KEDA-5-DE000001 to KEDA-5-DE000012. Exam year 80
 -- and the DE prefix keep them clear of anything issued to a real student. The first exam is published
 -- so a parent sees marks; the second is not, so the publishing switch can be tried.
 -- Two exams for the demo batch, so the marks screens and the analysis have something to rank.

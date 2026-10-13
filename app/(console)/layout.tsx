@@ -1,6 +1,9 @@
+import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import { fontVariables } from "@/app/fonts";
 import { ServiceWorker } from "@/components/pwa/ServiceWorker";
+import { RouteProgress } from "@/components/RouteProgress";
+import { SITE_ICONS } from "@/lib/site-icons";
 import "@/app/globals.css";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: { default: "Console — Kavery Sports Club", template: "%s — Kavery console" },
   robots: { index: false, follow: false },
-  icons: { apple: "/icons/apple-touch-icon.png" },
+  icons: SITE_ICONS,
 };
 
 export const viewport: Viewport = { themeColor: "#111113" };
@@ -27,6 +30,10 @@ export default function ConsoleRootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="theme-console min-h-screen">
         {children}
+        {/* Reads the address bar, so it sits in its own boundary and never holds a page back. */}
+        <Suspense fallback={null}>
+          <RouteProgress />
+        </Suspense>
         <ServiceWorker />
       </body>
     </html>

@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, LineChart, Line } from "recharts";
 import { Loader2, ArrowLeft, AlertTriangle, GraduationCap, QrCode as QrIcon, Pencil, Trash2, X } from "lucide-react";
 import { StudentIdCardModal } from "@/components/keda/student-id-card-modal";
+import { shrinkImage } from "@/lib/upload-client";
 import { Modal, ConfirmDialog, AlertModal } from "@/components/console/confirm-dialog";
 import { useCurrentUser } from "@/components/console/current-user";
 import { isValidPhoneLocal, PHONE_HINT } from "@/lib/phone";
@@ -18,6 +19,7 @@ export default function StudentProfilePage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showIdCard, setShowIdCard] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [leaveHistory, setLeaveHistory] = useState<any[]>([]);
 
@@ -55,6 +57,30 @@ export default function StudentProfilePage() {
     } finally {
       setDeleting(false);
     }
+  };
+
+  // A phone photo is shrunk in the browser first; the server then checks it really is an image.
+  const uploadPhoto = async (file?: File) => {
+    if (!file) return;
+    setPhotoBusy(true);
+    try {
+      const body = new FormData();
+      body.append("photo", await shrinkImage(file));
+      const res = await fetch(`/api/students/${studentId}/photo`, { method: "POST", body });
+      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as any).error || "The photo could not be uploaded.");
+      fetchData();
+    } catch (e: any) {
+      setAlertMessage(e.message);
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const removePhoto = async () => {
+    setPhotoBusy(true);
+    await fetch(`/api/students/${studentId}/photo`, { method: "DELETE" }).catch(() => {});
+    setPhotoBusy(false);
+    fetchData();
   };
 
   const deactivateInstead = async () => {
@@ -99,8 +125,25 @@ export default function StudentProfilePage() {
         <div className="lg:col-span-1 bg-card p-6 rounded-3xl border border-border shadow-sm relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-24 bg-primary"></div>
           <div className="relative mt-8 flex flex-col items-center">
-            <div className="w-24 h-24 bg-card rounded-full border-4 border-white flex items-center justify-center shadow-lg mb-4">
-              <span className="text-3xl font-bold text-primary">{student.name.charAt(0)}</span>
+            <div className="w-24 h-24 bg-card rounded-full border-4 border-white flex items-center justify-center shadow-lg mb-3 overflow-hidden">
+              {student.photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- a private file behind the signed-in route
+                <img src={student.photoUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-3xl font-bold text-primary">{student.name.charAt(0)}</span>
+              )}
+            </div>
+            {/* The photo is printed on the ID card. */}
+            <div className="mb-4 flex items-center gap-3 text-sm">
+              <label className={`cursor-pointer font-semibold text-primary underline underline-offset-4 ${photoBusy ? "pointer-events-none opacity-60" : ""}`}>
+                {photoBusy ? "Uploading…" : student.photoUrl ? "Change photo" : "Add photo"}
+                <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={photoBusy} onChange={(e) => { uploadPhoto(e.target.files?.[0]); e.target.value = ""; }} />
+              </label>
+              {student.photoUrl && !photoBusy && (
+                <button type="button" onClick={removePhoto} className="cursor-pointer text-muted-foreground underline underline-offset-4 hover:text-destructive">
+                  Remove
+                </button>
+              )}
             </div>
             <h2 className="text-2xl font-bold">{student.name}</h2>
             <p className="font-mono text-xs text-muted-foreground mt-1">{student.registrationNumber ?? "No registration number"}</p>

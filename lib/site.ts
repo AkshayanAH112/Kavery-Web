@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { getLocalYear } from "@/lib/dates";
 import { normalizeSiteSettings, type SiteSettings } from "@/lib/site-settings";
@@ -55,7 +55,7 @@ export async function getHomeData() {
   const db = getDb();
   const m = schema.cricketMatches;
 
-  const [students, members, matchesScored, posts, matchRows, tournaments, teams, folders] = await Promise.all([
+  const [students, members, matchesScored, posts, matchRows, tournaments, teams] = await Promise.all([
     db.$count(schema.students, eq(schema.students.isActive, true)),
     db.$count(schema.members, eq(schema.members.status, "approved")),
     db.$count(m, and(eq(m.status, "completed"), eq(m.isPublished, true))),
@@ -73,7 +73,7 @@ export async function getHomeData() {
       .from(schema.posts)
       .where(eq(schema.posts.status, "published"))
       .orderBy(desc(schema.posts.publishedAt))
-      .limit(3),
+      .limit(5),
     db
       .select({
         id: m.id,
@@ -93,7 +93,6 @@ export async function getHomeData() {
       .limit(30),
     db.select({ id: schema.cricketTournaments.id, name: schema.cricketTournaments.name, isPublished: schema.cricketTournaments.isPublished }).from(schema.cricketTournaments),
     db.select().from(schema.cricketTeams),
-    db.select().from(schema.galleryFolders).where(isNotNull(schema.galleryFolders.coverUrl)).orderBy(desc(schema.galleryFolders.updatedAt)).limit(6),
   ]);
 
   const tournamentById = new Map(tournaments.map((t) => [t.id, t]));
@@ -135,7 +134,6 @@ export async function getHomeData() {
     upcoming: upcoming.slice(0, 3),
     recent: recent.slice(0, 3),
     featured: live[0] ?? upcoming[0] ?? recent[0] ?? null,
-    folders,
   };
 }
 

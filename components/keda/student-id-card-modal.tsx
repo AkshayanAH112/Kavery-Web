@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { Download, Printer } from "lucide-react";
 
-type CardStudent = { name: string; qrCode: string; registrationNumber?: string; grade: number; batchId?: { name?: string } | string };
+type CardStudent = { name: string; qrCode: string; registrationNumber?: string; grade: number; batchId?: { name?: string } | string; photoUrl?: string };
 
 // CR80 card proportions (85.6 × 54 mm) at roughly 300 dpi.
 const W = 1012;
@@ -33,21 +33,47 @@ function fitText(ctx: CanvasRenderingContext2D, text: string, family: string, we
 }
 
 /**
+ * A long name gets a smaller size, and past that a second line, rather than
+ * being squeezed or cut: the name on a child's card must be whole and readable.
+ */
+function fitName(ctx: CanvasRenderingContext2D, name: string, family: string, maxWidth: number) {
+  const fits = (lines: string[], size: number) => {
+    ctx.font = `800 ${size}px ${family}`;
+    return lines.every((line) => ctx.measureText(line).width <= maxWidth);
+  };
+  for (let size = 48; size >= 32; size -= 2) if (fits([name], size)) return { size, lines: [name] };
+  const words = name.trim().split(/\s+/);
+  if (words.length < 2) return { size: 30, lines: [name] };
+  // Break where the two halves are closest in length.
+  let split = 1;
+  for (let i = 1; i < words.length; i++) {
+    const diff = (at: number) => Math.abs(words.slice(0, at).join(" ").length - words.slice(at).join(" ").length);
+    if (diff(i) < diff(split)) split = i;
+  }
+  const lines = [words.slice(0, split).join(" "), words.slice(split).join(" ")];
+  for (let size = 36; size > 22; size -= 2) if (fits(lines, size)) return { size, lines };
+  return { size: 22, lines };
+}
+
+/**
  * The student's card, drawn straight onto a canvas — no template image and no
  * screenshot library, so it prints and downloads at full resolution and the
  * Tamil in a name is set in the site's own Tamil font.
  *
  * The QR code is the student's permanent scan id. It carries no personal data,
- * and the card deliberately shows no phone number or address.
+ * and the card deliberately shows no phone number or address. The photo is the
+ * one added on the student's page; a card without one shows the child's initial.
  */
 async function drawCard(canvas: HTMLCanvasElement, student: CardStudent) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const root = getComputedStyle(document.documentElement);
   const family = `${root.getPropertyValue("--font-hanken") || "system-ui"}, ${root.getPropertyValue("--font-anek") || "sans-serif"}, sans-serif`;
-  const [logo, qr] = await Promise.all([
+  const [logo, qr, photo] = await Promise.all([
     loadImage("/brand/keda-logo.webp"),
     loadImage(await QRCode.toDataURL(student.qrCode, { margin: 1, scale: 12, errorCorrectionLevel: "M" })),
+    // Served by the signed-in photo route on this origin, so the canvas stays exportable.
+    student.photoUrl ? loadImage(student.photoUrl).catch(() => null) : null,
     document.fonts.load(`700 40px ${family}`, student.name).catch(() => {}),
   ]);
 
@@ -70,45 +96,72 @@ async function drawCard(canvas: HTMLCanvasElement, student: CardStudent) {
   ctx.font = `600 22px ${family}`;
   ctx.fillText("Periyaneelavanai · Student card", 164, 140);
 
-  // Details
-  const left = 48;
-  const textWidth = 560;
-  ctx.fillStyle = "#4A5878";
-  ctx.font = `600 22px ${family}`;
-  ctx.fillText("NAME", left, 214);
-  ctx.fillStyle = INK;
-  fitText(ctx, student.name, family, 800, 54, 28, textWidth);
-  ctx.fillText(student.name, left, 270, textWidth);
-
-  ctx.fillStyle = "#4A5878";
-  ctx.font = `600 22px ${family}`;
-  ctx.fillText("INDEX NUMBER", left, 340);
-  ctx.fillStyle = BLUE;
-  ctx.font = `800 52px ${family}`;
-  ctx.fillText(student.registrationNumber ?? "—", left, 394);
-
-  const batchName = typeof student.batchId === "object" ? student.batchId?.name : undefined;
-  ctx.fillStyle = "#4A5878";
-  ctx.font = `600 22px ${family}`;
-  ctx.fillText("GRADE", left, 462);
-  if (batchName) ctx.fillText("BATCH", left + 170, 462);
-  ctx.fillStyle = INK;
-  ctx.font = `700 36px ${family}`;
-  ctx.fillText(String(student.grade), left, 506);
-  if (batchName) {
-    fitText(ctx, batchName, family, 700, 36, 22, textWidth - 170);
-    ctx.fillText(batchName, left + 170, 506, textWidth - 170);
+  // Photo — what lets a teacher match the card to the child holding it. Without one, an initial.
+  const px = 48, py = 190, pw = 196, ph = 246;
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(px, py, pw, ph, 14);
+  ctx.clip();
+  ctx.fillStyle = "#E8ECF4";
+  ctx.fillRect(px, py, pw, ph);
+  if (photo) {
+    // Cover the box without stretching the face.
+    const scale = Math.max(pw / photo.width, ph / photo.height);
+    const sw = pw / scale, sh = ph / scale;
+    ctx.drawImage(photo, (photo.width - sw) / 2, (photo.height - sh) / 2, sw, sh, px, py, pw, ph);
+  } else {
+    ctx.fillStyle = "#9AA6C0";
+    ctx.font = `800 96px ${family}`;
+    ctx.textAlign = "center";
+    ctx.fillText(student.name.trim().charAt(0).toUpperCase() || "?", px + pw / 2, py + ph / 2 + 34);
+    ctx.textAlign = "left";
   }
+  ctx.restore();
+  ctx.strokeStyle = BLUE;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.roundRect(px, py, pw, ph, 14);
+  ctx.stroke();
 
   // QR
-  const qrSize = 300;
-  const qrX = W - qrSize - 52;
-  ctx.drawImage(qr, qrX, 186, qrSize, qrSize);
+  const qrSize = 236;
+  const qrX = W - qrSize - 48;
+  ctx.drawImage(qr, qrX, py, qrSize, qrSize);
   ctx.fillStyle = "#4A5878";
-  ctx.font = `600 22px ui-monospace, monospace`;
+  ctx.font = `600 19px ui-monospace, monospace`;
   ctx.textAlign = "center";
-  ctx.fillText(student.qrCode, qrX + qrSize / 2, 522);
+  ctx.fillText(student.qrCode, qrX + qrSize / 2, py + qrSize + 28);
   ctx.textAlign = "left";
+
+  // Details, in the column between the photo and the QR code
+  const left = px + pw + 28;
+  const textWidth = qrX - 24 - left;
+  const label = (text: string, x: number, y: number) => {
+    ctx.fillStyle = "#4A5878";
+    ctx.font = `600 20px ${family}`;
+    ctx.fillText(text, x, y);
+  };
+  label("NAME", left, 214);
+  ctx.fillStyle = INK;
+  const name = fitName(ctx, student.name, family, textWidth);
+  ctx.font = `800 ${name.size}px ${family}`;
+  name.lines.forEach((line, i) => ctx.fillText(line, left, (name.lines.length === 1 ? 264 : 250) + i * (name.size + 6), textWidth));
+
+  label("INDEX NUMBER", left, 346);
+  ctx.fillStyle = BLUE;
+  fitText(ctx, student.registrationNumber ?? "—", family, 800, 46, 30, textWidth);
+  ctx.fillText(student.registrationNumber ?? "—", left, 394, textWidth);
+
+  const batchName = typeof student.batchId === "object" ? student.batchId?.name : undefined;
+  label("GRADE", left, 448);
+  if (batchName) label("BATCH", left + 120, 448);
+  ctx.fillStyle = INK;
+  ctx.font = `700 34px ${family}`;
+  ctx.fillText(String(student.grade), left, 490);
+  if (batchName) {
+    fitText(ctx, batchName, family, 700, 34, 20, textWidth - 120);
+    ctx.fillText(batchName, left + 120, 490, textWidth - 120);
+  }
 
   // The club's colours as a footer thread back to Kavery Sports Club.
   ctx.fillStyle = "#E00000";

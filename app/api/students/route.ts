@@ -66,7 +66,6 @@ export async function POST(request: Request) {
       whatsapp: data.whatsapp ? String(data.whatsapp).replace(/[\s-]/g, "") : null,
       notes: text(data.notes, 500) || null,
       grade,
-      photoUrl: text(data.photoUrl, 500) || null,
       qrCode: newQrCode(grade),
       registrationNumber,
       // The cutoff for class eligibility: a mid-batch joiner is not on earlier registers.

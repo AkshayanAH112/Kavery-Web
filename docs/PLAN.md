@@ -209,6 +209,8 @@ suites, against the production Worker in the local Workers runtime: all three pa
   stays signed in for 30 days. It replaced the first version, which asked for the index number
   alone. The response is assembled field by field so no family detail can leak; an absent paper is
   shown as absent, never as 0.
+- Student ID cards carry the student's photo (added on the student's page; private to staff). A card
+  without a photo shows the child's initial, and a long name wraps to two lines.
 - About page (`/[locale]/about`) for the club and KEDA, fed by a "Site details" screen in the
   console: contact lines, the story in English and Tamil, class times, office bearers.
 - News and gallery can be viewed as All / Club / KEDA, and a post or album is marked as the club's
@@ -220,7 +222,10 @@ suites, against the production Worker in the local Workers runtime: all three pa
 - Gallery: albums, bulk photo upload, captions, cover choice, and public album pages with a
   full-screen viewer. Deleting a post, a photo or an album also removes its files from storage.
 - Photos are shrunk in the browser before upload (1600px, WebP), which also drops location data.
-- The site navigation offers News and Gallery only once there is something in them.
+- News and Gallery are always in the site navigation; an empty one says that posts or albums will appear there.
+- The home page always has a News and a Gallery section. Each is a hover-expand row of up to five
+  tiles (`components/site/ExpandShowcase.tsx`, CSS only): one tile is open and shows its title and
+  text, the others stand as spines, and a giant word drifts behind. On phones it is a two-column grid.
 - Club membership:
   - Public join form (`/[locale]/membership`) and renew form (`/[locale]/membership/renew`), in
     English and Tamil, linked from the navigation and the club section of the home page.
@@ -262,8 +267,38 @@ Checked by four scripted runs (40, 19, 35 and 69 assertions) on the dev server.
 
 ### Phase 4 — Launch
 
-`wrangler d1 create`, `wrangler r2 bucket create`, secrets, custom domain, rate limiting on login and
-the public forms, SEO (sitemap, JSON-LD, hreflang), privacy page, real photography.
+**Done (13 Oct 2026):**
+
+- Cloudflare account chosen; D1 database `kavery-db` created in the APAC region and its tables
+  applied; R2 bucket `kaverysc` (created by the club) is the media store.
+- First deploy: <https://kavery-sports-club.kavery-sports-club.workers.dev>. Public pages answer;
+  the Worker is 2.12 MB compressed (the free plan's limit is 3 MB).
+- Domain `periyaneelavanaikaverysports.club` bought at Spaceship; its nameservers now point at
+  Cloudflare and it (with `www.`) is attached to the Worker. The site answers on it over HTTPS.
+- Steps 1 to 4 of the list below are done: the five secrets are set, an administrator exists on the
+  live database, and a password check completes within the free plan's limits.
+- Not yet switched on in the Cloudflare dashboard: "Always Use HTTPS" (plain `http://` still answers).
+
+**Still to do, in order:**
+
+1. Secrets on the Worker: `AUTH_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`,
+   `CRON_SECRET`. Nobody can sign in until `AUTH_SECRET` is set.
+2. The first administrator on the live database (`npm run db:seed -- --remote`, after putting a real
+   email and password in `.dev.vars`).
+3. First live sign-in. Checking a password is the heaviest thing the app does, and the free plan
+   allows little processing time per request — if sign-in fails there, move to the paid plan or
+   lighten the check.
+4. Point the domain's nameservers at Cloudflare (at Spaceship), then add the domain as a custom
+   domain on the Worker (`routes` with `custom_domain: true` in `wrangler.jsonc`) and deploy.
+5. Phone checks: install the app, receive a notification, scan a card for attendance and on the
+   parent page.
+6. Schedule the yearly promotion (`POST /api/cron/promote-students` with the cron secret); until
+   then an administrator runs it by hand in January.
+7. Rate-limiting rules on sign-in, the public forms and the parent page; SEO (sitemap, JSON-LD);
+   privacy page; real photography.
+8. Email (membership card on approval): the club's sending mailbox is
+   kaveryscperiyaneelavanai@gmail.com. Ordinary Node mail libraries do not run on Workers, so this
+   needs a mail API or an SMTP client written for Workers.
 
 ## 6. Open questions for the club
 
