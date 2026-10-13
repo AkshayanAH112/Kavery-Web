@@ -196,9 +196,9 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           <div className="self-end">
             {[1, 2, 3].map((n) => (
               <Reveal key={n} delay={n * 0.08}>
-                <div className="flex flex-col gap-2 border-t border-line py-7 sm:grid sm:grid-cols-[11rem_1fr] sm:items-baseline sm:gap-6">
-                  <span className="display text-4xl text-accent sm:text-5xl">{t(`club.pillar${n}Title`)}</span>
-                  <p className="text-lg leading-relaxed text-muted-foreground">{t(`club.pillar${n}Body`)}</p>
+                <div className="flex flex-col gap-3 border-t border-line py-6 sm:py-7">
+                  <span className="display text-3xl text-accent sm:text-4xl lg:text-5xl">{t(`club.pillar${n}Title`)}</span>
+                  <p className="text-base leading-relaxed text-muted-foreground sm:text-lg">{t(`club.pillar${n}Body`)}</p>
                 </div>
               </Reveal>
             ))}
