@@ -4,26 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { Download, Printer } from "lucide-react";
 
-type CardBatch = { name?: string; year?: number; grades?: number[]; autoPromote?: boolean };
+type CardBatch = { name?: string; year?: number };
 type CardStudent = { name: string; qrCode: string; registrationNumber?: string; grade: number; batchId?: CardBatch | string; photoUrl?: string };
 
-/**
- * "4 & 5 (2026/27)" for a student whose batch carries them up through its
- * grades (`autoPromote`): the card is printed once, so it names the whole
- * course rather than a grade that is out of date after January. Any other
- * student — no batch, or a batch that merely teaches two grades side by side —
- * gets their own grade.
- */
-function gradeLine(student: CardStudent, batch?: CardBatch) {
-  const grades = [...(batch?.grades ?? [])].sort((a, b) => a - b);
-  if (!batch?.autoPromote || !batch.year || grades.length < 2 || !grades.includes(student.grade)) return String(student.grade);
-  const firstYear = batch.year - (grades.length - 1);
-  return `${grades.join(" & ")} (${firstYear}/${String(batch.year % 100).padStart(2, "0")})`;
-}
-
-// CR80 card proportions (85.6 × 54 mm) at roughly 300 dpi.
-const W = 1012;
-const H = 638;
+// Match the supplied artwork exactly; keep its aspect ratio in preview and print.
+const W = 1011;
+const H = 639;
 const BLUE = "#003084";
 const INK = "#071B45";
 
@@ -31,175 +17,100 @@ function loadImage(src: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = reject;
+    img.onerror = () => reject(new Error("Unable to load the ID card image"));
     img.src = src;
   });
 }
 
-/** Shrinks the font until `text` fits `maxWidth`, down to `min`. Returns the size used. */
 function fitText(ctx: CanvasRenderingContext2D, text: string, family: string, weight: number, start: number, min: number, maxWidth: number) {
-  let size = start;
-  do {
+  for (let size = start; size >= min; size -= 2) {
     ctx.font = `${weight} ${size}px ${family}`;
-    if (ctx.measureText(text).width <= maxWidth) break;
-    size -= 2;
-  } while (size > min);
-  return size;
+    if (ctx.measureText(text).width <= maxWidth) return;
+  }
 }
 
-/**
- * A long name gets a smaller size, and past that a second line, rather than
- * being squeezed or cut: the name on a child's card must be whole and readable.
- */
+/** Keep the complete Tamil name, using two balanced lines for longer names. */
 function fitName(ctx: CanvasRenderingContext2D, name: string, family: string, maxWidth: number) {
   const fits = (lines: string[], size: number) => {
-    ctx.font = `800 ${size}px ${family}`;
+    ctx.font = `700 ${size}px ${family}`;
     return lines.every((line) => ctx.measureText(line).width <= maxWidth);
   };
-  for (let size = 48; size >= 32; size -= 2) if (fits([name], size)) return { size, lines: [name] };
+  for (let size = 38; size >= 30; size -= 2) if (fits([name], size)) return { size, lines: [name] };
   const words = name.trim().split(/\s+/);
-  if (words.length < 2) return { size: 30, lines: [name] };
-  // Break where the two halves are closest in length.
+  if (words.length < 2) return { size: 28, lines: [name] };
   let split = 1;
-  for (let i = 1; i < words.length; i++) {
-    const diff = (at: number) => Math.abs(words.slice(0, at).join(" ").length - words.slice(at).join(" ").length);
-    if (diff(i) < diff(split)) split = i;
-  }
+  const widthDifference = (at: number) => Math.abs(ctx.measureText(words.slice(0, at).join(" ")).width - ctx.measureText(words.slice(at).join(" ")).width);
+  for (let i = 2; i < words.length; i++) if (widthDifference(i) < widthDifference(split)) split = i;
   const lines = [words.slice(0, split).join(" "), words.slice(split).join(" ")];
-  for (let size = 36; size > 22; size -= 2) if (fits(lines, size)) return { size, lines };
+  for (let size = 36; size >= 22; size -= 2) if (fits(lines, size)) return { size, lines };
   return { size: 22, lines };
 }
 
-/**
- * The student's card, drawn straight onto a canvas — no template image and no
- * screenshot library, so it prints and downloads at full resolution and the
- * Tamil in a name is set in the site's own Tamil font.
- *
- * The QR code is the student's permanent scan id. It carries no personal data,
- * and the card deliberately shows no phone number or address. The photo is the
- * one added on the student's page; a card without one shows the child's initial.
- */
+/** Overlay the student's details on the supplied artwork, retaining its photo and QR frames. */
 async function drawCard(canvas: HTMLCanvasElement, student: CardStudent) {
   const ctx = canvas.getContext("2d");
-  if (!ctx) return;
+  if (!ctx) throw new Error("Canvas is unavailable");
   const root = getComputedStyle(document.documentElement);
-  const family = `${root.getPropertyValue("--font-anek") || "sans-serif"}, ${root.getPropertyValue("--font-hanken") || "system-ui"}, sans-serif`;
-  const [logo, qr, photo] = await Promise.all([
-    loadImage("/brand/keda-logo.webp"),
-    loadImage(await QRCode.toDataURL(student.qrCode, { margin: 1, scale: 12, errorCorrectionLevel: "M" })),
-    // Served by the signed-in photo route on this origin, so the canvas stays exportable.
+  const englishFamily = `${root.getPropertyValue("--font-hanken").trim() || "system-ui"}, sans-serif`;
+  const tamilFamily = `${root.getPropertyValue("--font-anek").trim() || "sans-serif"}, ${englishFamily}`;
+  const batch = typeof student.batchId === "object" ? student.batchId : undefined;
+  const batchName = batch?.name?.trim() || (batch?.year ? String(batch.year) : "—");
+  const indexNumber = student.registrationNumber?.trim() || "—";
+  const [template, qr, photo] = await Promise.all([
+    loadImage("/brand/keda-id-card-template.png"),
+    QRCode.toDataURL(student.qrCode, { margin: 4, scale: 12, errorCorrectionLevel: "M" }).then(loadImage),
+    // The signed-in photo route is on this origin, so downloads remain exportable.
     student.photoUrl ? loadImage(student.photoUrl).catch(() => null) : null,
-    document.fonts.load(`800 34px ${family}`, "காவேரி கல்விசார் அபிவிருத்தி ஒன்றியம்").catch(() => {}),
-    document.fonts.load(`700 40px ${family}`, student.name).catch(() => {}),
-    document.fonts.load(`700 20px ${family}`, "பெயர் சுட்டெண் தரம் பிரிவு").catch(() => {}),
+    document.fonts.load(`700 38px ${tamilFamily}`, `${student.name} பெயர் சுட்டெண்`),
+    document.fonts.load(`600 22px ${tamilFamily}`, "பெயர் சுட்டெண்"),
+    document.fonts.load(`700 34px ${englishFamily}`, `${indexNumber} ${batchName}`),
+    document.fonts.load(`600 22px ${englishFamily}`, "Batch"),
   ]);
 
-  ctx.fillStyle = "#FFFFFF";
-  ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(template, 0, 0, W, H);
 
-  // Header band
-  ctx.fillStyle = BLUE;
-  ctx.fillRect(0, 0, W, 150);
-  ctx.fillStyle = "#FFFFFF";
-  ctx.beginPath();
-  ctx.roundRect(36, 24, 102, 102, 14);
-  ctx.fill();
-  ctx.drawImage(logo, 42, 30, 90, 90 * (logo.height / logo.width));
-  ctx.textBaseline = "alphabetic";
-  ctx.font = `800 34px ${family}`;
-  ctx.fillText("காவேரி கல்விசார்", 164, 68);
-  ctx.fillText("அபிவிருத்தி ஒன்றியம்", 164, 106);
-  ctx.fillStyle = "#FBF1B0";
-  ctx.font = `700 21px ${family}`;
-  ctx.fillText("பெரியநீலாவணை · மாணவர் அடையாள அட்டை", 164, 138);
-
-  // Photo — what lets a teacher match the card to the child holding it. Without one, an initial.
-  const px = 48, py = 190, pw = 196, ph = 246;
-  ctx.save();
-  ctx.beginPath();
-  ctx.roundRect(px, py, pw, ph, 14);
-  ctx.clip();
-  ctx.fillStyle = "#E8ECF4";
-  ctx.fillRect(px, py, pw, ph);
+  // Preserve the artwork's photo placeholder when no student photo is available.
   if (photo) {
-    // Cover the box without stretching the face.
-    const scale = Math.max(pw / photo.width, ph / photo.height);
-    const sw = pw / scale, sh = ph / scale;
-    ctx.drawImage(photo, (photo.width - sw) / 2, (photo.height - sh) / 2, sw, sh, px, py, pw, ph);
-  } else {
-    ctx.fillStyle = "#9AA6C0";
-    ctx.font = `800 96px ${family}`;
-    ctx.textAlign = "center";
-    ctx.fillText(student.name.trim().charAt(0) || "?", px + pw / 2, py + ph / 2 + 34);
-    ctx.textAlign = "left";
+    const x = 41, y = 264, width = 210, height = 276;
+    const scale = Math.max(width / photo.width, height / photo.height);
+    const sw = width / scale, sh = height / scale;
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x, y, width, height, 12);
+    ctx.clip();
+    ctx.drawImage(photo, (photo.width - sw) / 2, (photo.height - sh) / 2, sw, sh, x, y, width, height);
+    ctx.restore();
   }
-  ctx.restore();
-  ctx.strokeStyle = BLUE;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.roundRect(px, py, pw, ph, 14);
-  ctx.stroke();
 
-  // QR
-  const qrSize = 236;
-  const qrX = W - qrSize - 48;
-  ctx.drawImage(qr, qrX, py, qrSize, qrSize);
-  ctx.fillStyle = "#4A5878";
-  ctx.font = `600 19px ui-monospace, monospace`;
-  ctx.textAlign = "center";
-  ctx.fillText(student.qrCode, qrX + qrSize / 2, py + qrSize + 28);
-  ctx.textAlign = "left";
+  // A four-module white quiet zone keeps the QR readable over the watermark.
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(qr, 751, 288, 216, 216);
+  ctx.imageSmoothingEnabled = true;
 
-  // Details, in the column between the photo and the QR code
-  const left = px + pw + 28;
-  const textWidth = qrX - 24 - left;
-  const label = (text: string, x: number, y: number) => {
-    ctx.fillStyle = "#4A5878";
-    ctx.font = `700 20px ${family}`;
-    ctx.fillText(text, x, y);
+  const left = 280;
+  const textWidth = 438;
+  ctx.textBaseline = "alphabetic";
+  const label = (text: string, y: number, family = tamilFamily) => {
+    ctx.fillStyle = BLUE;
+    ctx.font = `600 22px ${family}`;
+    ctx.fillText(text, left, y);
   };
-  label("பெயர்", left, 214);
+
+  label("பெயர்", 292);
   ctx.fillStyle = INK;
-  const name = fitName(ctx, student.name, family, textWidth);
-  ctx.font = `800 ${name.size}px ${family}`;
-  name.lines.forEach((line, i) => ctx.fillText(line, left, (name.lines.length === 1 ? 264 : 250) + i * (name.size + 6), textWidth));
+  const name = fitName(ctx, student.name, tamilFamily, textWidth);
+  ctx.font = `700 ${name.size}px ${tamilFamily}`;
+  name.lines.forEach((line, i) => ctx.fillText(line, left, 333 + i * 42, textWidth));
 
-  label("சுட்டெண்", left, 346);
-  ctx.fillStyle = BLUE;
-  fitText(ctx, student.registrationNumber ?? "—", family, 800, 46, 30, textWidth);
-  ctx.fillText(student.registrationNumber ?? "—", left, 394, textWidth);
-
-  const batch = typeof student.batchId === "object" ? student.batchId : undefined;
-  const grade = gradeLine(student, batch);
-  label("தரம்", left, 448);
+  label("சுட்டெண்", 409);
   ctx.fillStyle = INK;
-  ctx.font = `700 34px ${family}`;
-  // The batch sits beside the grade, after however much room the grade took.
-  const batchLeft = left + Math.max(120, Math.ceil(ctx.measureText(grade).width) + 32);
-  ctx.fillText(grade, left, 490);
-  if (batch?.name) {
-    const room = left + textWidth - batchLeft;
-    if (room >= 180) {
-      label("பிரிவு", batchLeft, 448);
-      ctx.fillStyle = INK;
-      fitText(ctx, batch.name, family, 700, 34, 20, room);
-      ctx.fillText(batch.name, batchLeft, 490, room);
-    } else {
-      // A grade that spells out the course leaves no room beside it: the batch goes on its own line below.
-      ctx.fillStyle = "#4A5878";
-      fitText(ctx, batch.name, family, 600, 24, 16, textWidth);
-      ctx.fillText(batch.name, left, 528, textWidth);
-    }
-  }
+  fitText(ctx, indexNumber, englishFamily, 700, 34, 22, textWidth);
+  ctx.fillText(indexNumber, left, 447, textWidth);
 
-  // The club's colours as a footer thread back to Kavery Sports Club.
-  ctx.fillStyle = "#E00000";
-  ctx.fillRect(0, H - 54, W, 40);
-  ctx.fillStyle = "#FFF200";
-  ctx.fillRect(0, H - 14, W, 14);
-  ctx.fillStyle = "#FFFFFF";
-  ctx.font = `700 22px ${family}`;
-  ctx.fillText("காவேரி விளையாட்டுக் கழகத்தின் கல்விப் பிரிவு", left, H - 27);
+  label("Batch", 485, englishFamily);
+  ctx.fillStyle = INK;
+  fitText(ctx, batchName, englishFamily, 700, 32, 20, textWidth);
+  ctx.fillText(batchName, left, 523, textWidth);
 }
 
 /**
@@ -208,15 +119,26 @@ async function drawCard(canvas: HTMLCanvasElement, student: CardStudent) {
  */
 export function StudentIdCardModal({ student, onClose }: { student: CardStudent; onClose: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [ready, setReady] = useState(false);
+  const [rendered, setRendered] = useState<{ student: CardStudent; status: "ready" | "error" } | null>(null);
+  const ready = rendered?.student === student && rendered.status === "ready";
+  const failed = rendered?.student === student && rendered.status === "error";
 
   useEffect(() => {
     let active = true;
-    if (canvasRef.current) {
-      drawCard(canvasRef.current, student)
-        .then(() => active && setReady(true))
-        .catch(() => active && setReady(true));
-    }
+    // Render offscreen so a late result cannot overwrite a newer student's card.
+    const draft = document.createElement("canvas");
+    draft.width = W;
+    draft.height = H;
+    drawCard(draft, student)
+      .then(() => {
+        if (!active) return;
+        const ctx = canvasRef.current?.getContext("2d");
+        if (!ctx) throw new Error("Canvas is unavailable");
+        ctx.clearRect(0, 0, W, H);
+        ctx.drawImage(draft, 0, 0);
+        setRendered({ student, status: "ready" });
+      })
+      .catch(() => active && setRendered({ student, status: "error" }));
     return () => {
       active = false;
     };
@@ -224,7 +146,7 @@ export function StudentIdCardModal({ student, onClose }: { student: CardStudent;
 
   const download = () => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !ready) return;
     const link = document.createElement("a");
     link.download = `${student.name.replace(/\s+/g, "_")}_KEDA_card.png`;
     link.href = canvas.toDataURL("image/png");
@@ -236,7 +158,7 @@ export function StudentIdCardModal({ student, onClose }: { student: CardStudent;
       {/* When printing, show the card alone at its real size. */}
       <style
         dangerouslySetInnerHTML={{
-          __html: `@media print { body * { visibility: hidden; } #printable-id-card { visibility: visible; position: fixed; left: 0; top: 0; width: 85.6mm; height: 54mm; border: 0; border-radius: 0; } }`,
+          __html: `@media print { body * { visibility: hidden; } #printable-id-card { visibility: ${ready ? "visible" : "hidden"}; position: fixed; left: 0; top: 0; width: 85.6mm; height: auto; border: 0; border-radius: 0; } }`,
         }}
       />
       <div role="dialog" aria-modal="true" aria-label={`${student.name} - மாணவர் அடையாள அட்டை`} className="w-full max-w-lg rounded-[var(--card-radius)] border border-border bg-card p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -252,7 +174,8 @@ export function StudentIdCardModal({ student, onClose }: { student: CardStudent;
           </div>
         </div>
 
-        <canvas id="printable-id-card" ref={canvasRef} width={W} height={H} className="h-auto w-full rounded-xl border border-border" />
+        {!ready && <p role={failed ? "alert" : "status"} className="mb-3 text-sm text-muted-foreground print:hidden">{failed ? "அடையாள அட்டையை உருவாக்க முடியவில்லை. மூடிவிட்டு மீண்டும் முயற்சிக்கவும்." : "அடையாள அட்டை தயாராகிறது…"}</p>}
+        <canvas id="printable-id-card" ref={canvasRef} width={W} height={H} aria-label={`${student.name} - மாணவர் அடையாள அட்டை`} className={`h-auto w-full rounded-xl border border-border ${ready ? "" : "invisible"}`} />
 
         <button type="button" onClick={onClose} className="mt-5 min-h-11 w-full cursor-pointer rounded-lg border border-border font-semibold hover:bg-muted print:hidden">
           மூடுக
