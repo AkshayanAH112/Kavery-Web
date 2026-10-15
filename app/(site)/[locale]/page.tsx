@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ArrowRight, BookOpenCheck, ClipboardCheck, HandCoins } from "lucide-react";
 import { AppPanel } from "@/components/pwa/AppPanel";
+import { ContactPeople } from "@/components/site/ContactPeople";
 import { ExpandShowcase } from "@/components/site/ExpandShowcase";
 import { Hero } from "@/components/site/Hero";
 import { LiveRefresh } from "@/components/site/LiveRefresh";
@@ -192,6 +193,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                 <span>{t("club.more")}</span>
               </a>
             </div>
+            <ContactPeople className="mt-12 max-w-xl" title={t("footer.contact")} people={settings.contacts.filter((c) => c.org === "ksc")} whatsapp={t("about.whatsapp")} />
           </Reveal>
           <div className="self-end">
             {[1, 2, 3].map((n) => (
@@ -259,6 +261,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                 </a>
               )}
             </div>
+            <ContactPeople className="mt-12 max-w-2xl" titleClassName="text-brand-text" title={t("footer.contact")} people={settings.contacts.filter((c) => c.org === "keda")} whatsapp={t("about.whatsapp")} />
           </div>
         </div>
       </section>

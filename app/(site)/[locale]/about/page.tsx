@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { ContactPeople } from "@/components/site/ContactPeople";
 import { PageShell } from "@/components/site/PageShell";
 import { getContentPresence } from "@/lib/content/public";
 import { CLUB, getAboutStats, getSettings } from "@/lib/site";
-import { paragraphs, whatsappNumber, type Bilingual, type Contact, type Officer } from "@/lib/site-settings";
+import { paragraphs, type Bilingual, type Officer } from "@/lib/site-settings";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/about">): Promise<Metadata> {
   const { locale } = await params;
@@ -45,30 +46,6 @@ function Officers({ title, people }: { title: string; people: Officer[] }) {
           <li key={i} className="flex items-baseline justify-between gap-4 border-b border-line py-3">
             <span className="text-muted-foreground">{p.role}</span>
             <span className="text-right font-semibold text-fg">{p.name}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function ContactPeople({ title, people, whatsapp }: { title: string; people: Contact[]; whatsapp: string }) {
-  if (people.length === 0) return null;
-  return (
-    <div>
-      <h3 className="eyebrow text-accent">{title}</h3>
-      <ul className="mt-4">
-        {people.map((p, i) => (
-          <li key={i} className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-line py-3">
-            <span className="font-semibold text-fg">{p.name}</span>
-            <span className="flex flex-wrap items-center gap-x-5">
-              <a href={`tel:${p.phone.replace(/[\s-]/g, "")}`} className="tabular inline-flex min-h-11 items-center text-lg font-bold hover:text-accent">
-                {p.phone}
-              </a>
-              <a href={`https://wa.me/${whatsappNumber(p.phone)}`} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-sm text-muted-foreground underline underline-offset-4 hover:text-accent">
-                {whatsapp}
-              </a>
-            </span>
           </li>
         ))}
       </ul>
