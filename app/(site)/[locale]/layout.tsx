@@ -129,7 +129,8 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[lo
         "@type": "SportsClub",
         "@id": "https://periyaneelavanaikaverysports.club/#club",
         name: "Kavery Sports Club",
-        alternateName: ["காவேரி விளையாட்டுக் கழகம்", "KSC", "Kavery SC", "Periyaneelavanai Kavery Sports Club"],
+        // The usual other spellings of காவேரி, so a search for any of them can match the club.
+        alternateName: ["காவேரி விளையாட்டுக் கழகம்", "KSC", "Kavery SC", "Periyaneelavanai Kavery Sports Club", "Kavery Sports Club Periyaneelavanai", "Kaveri Sports Club", "Cauvery Sports Club"],
         url: "https://periyaneelavanaikaverysports.club",
         logo: "https://periyaneelavanaikaverysports.club/brand/ksc-crest.png",
         image: "https://periyaneelavanaikaverysports.club/brand/og-image-en.png",

@@ -35,11 +35,11 @@ export function Hero({ eyebrow, line1, line2, lead, founded, actions, children }
   const copyOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0.15]);
 
   return (
-    <section ref={ref} className="grain relative isolate flex min-h-[100svh] flex-col overflow-hidden bg-bg">
+    <section ref={ref} className="grain relative isolate flex min-h-svh flex-col overflow-hidden bg-bg">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
         {/* floodlight */}
-        <div className="absolute -right-[20%] -top-[30%] h-[90vh] w-[90vh] rounded-full bg-brand opacity-30 blur-[140px]" />
-        <motion.div style={{ y: reduce ? 0 : yearY }} className="absolute -left-[2vw] top-[9vh] select-none">
+        <div className="absolute right-[-20%] top-[-30%] h-[90vh] w-[90vh] rounded-full bg-brand opacity-30 blur-[140px]" />
+        <motion.div style={{ y: reduce ? 0 : yearY }} className="absolute left-[-2vw] top-[9vh] select-none">
           <span
             className="display block text-[42vw] leading-none text-transparent lg:text-[30vw]"
             style={{ WebkitTextStroke: "1.5px rgb(255 255 255 / 0.07)" }}
@@ -47,14 +47,14 @@ export function Hero({ eyebrow, line1, line2, lead, founded, actions, children }
             {founded}
           </span>
         </motion.div>
-        <motion.div style={{ y: reduce ? 0 : sashRedY }} className="absolute -right-[38vw] top-[4vh] h-[30vh] w-[105vw] -rotate-[24deg] bg-brand lg:-right-[30vw] lg:w-[80vw]" />
-        <motion.div style={{ y: reduce ? 0 : sashYellowY }} className="absolute -right-[38vw] top-[41vh] h-[1.6vh] w-[64vw] -rotate-[24deg] bg-accent sm:w-[105vw] lg:-right-[30vw] lg:top-[45vh] lg:w-[80vw]" />
-        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-bg to-transparent" />
+        <motion.div style={{ y: reduce ? 0 : sashRedY }} className="absolute right-[-38vw] top-[4vh] h-[30vh] w-[105vw] rotate-[-24deg] bg-brand lg:right-[-30vw] lg:w-[80vw]" />
+        <motion.div style={{ y: reduce ? 0 : sashYellowY }} className="absolute right-[-38vw] top-[41vh] h-[1.6vh] w-[64vw] rotate-[-24deg] bg-accent sm:w-[105vw] lg:right-[-30vw] lg:top-[45vh] lg:w-[80vw]" />
+        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-bg to-transparent" />
       </div>
 
       <motion.div
         style={{ y: reduce ? 0 : crestY, rotate: reduce ? 0 : crestRotate }}
-        className="pointer-events-none absolute right-[6vw] top-[calc(var(--nav-h)+1.5rem)] z-0 w-[34vw] max-w-[9.5rem] sm:max-w-[13rem] lg:right-[7vw] lg:top-[15vh] lg:w-[30vw] lg:max-w-[27rem]"
+        className="pointer-events-none absolute right-[6vw] top-[calc(var(--nav-h)+1.5rem)] z-0 w-[34vw] max-w-38 sm:max-w-52 lg:right-[7vw] lg:top-[15vh] lg:w-[30vw] lg:max-w-108"
       >
         <Image
           src="/brand/ksc-crest.webp"
@@ -72,9 +72,10 @@ export function Hero({ eyebrow, line1, line2, lead, founded, actions, children }
           <p className="eyebrow text-accent">{eyebrow}</p>
           <h1 className="display mt-4">
             <span className="hero-line1 block">{line1}</span>
+            {/* The lines are blocks, so this space is invisible — but without it the heading's text reads "KaverySports Club" to search engines. */}{" "}
             <span className="hero-line2 block text-accent">{line2}</span>
           </h1>
-          <p className="mt-7 max-w-[34rem] text-lg leading-relaxed text-muted-foreground">{lead}</p>
+          <p className="mt-7 max-w-136 text-lg leading-relaxed text-muted-foreground">{lead}</p>
           <div className="mt-8 flex flex-wrap gap-x-5 gap-y-4 pl-1">{actions}</div>
         </motion.div>
       </div>
