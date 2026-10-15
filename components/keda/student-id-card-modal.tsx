@@ -22,28 +22,59 @@ function loadImage(src: string) {
   });
 }
 
-function fitText(ctx: CanvasRenderingContext2D, text: string, family: string, weight: number, start: number, min: number, maxWidth: number) {
-  for (let size = start; size >= min; size -= 2) {
-    ctx.font = `${weight} ${size}px ${family}`;
-    if (ctx.measureText(text).width <= maxWidth) return;
-  }
+// The details column: right of the photo frame, left of the QR frame, as tall as the photo frame.
+const TEXT_LEFT = 280;
+const TEXT_WIDTH = 438;
+const AREA_TOP = 262;
+const AREA_BOTTOM = 542;
+const LABEL_SIZE = 22;
+const LABEL_LINE = 30;
+const ROW_GAP = 16;
+const VALUE_LINE = 1.3; // × the value size; Tamil vowel signs reach well above and below the letters.
+
+type DetailLine = { label: string; labelFamily: string; values: string[]; family: string };
+
+/** Split a long name into two lines of about equal width, at a space. */
+function splitName(ctx: CanvasRenderingContext2D, name: string) {
+  const words = name.trim().split(/\s+/);
+  if (words.length < 2) return [name];
+  const width = (from: number, to?: number) => ctx.measureText(words.slice(from, to).join(" ")).width;
+  let split = 1;
+  for (let i = 2; i < words.length; i++) if (Math.abs(width(0, i) - width(i)) < Math.abs(width(0, split) - width(split))) split = i;
+  return [words.slice(0, split).join(" "), words.slice(split).join(" ")];
 }
 
-/** Keep the complete Tamil name, using two balanced lines for longer names. */
-function fitName(ctx: CanvasRenderingContext2D, name: string, family: string, maxWidth: number) {
-  const fits = (lines: string[], size: number) => {
+/**
+ * Name, index number and batch share one value size — the largest at which all
+ * three fit — and one spacing, so the three lines read as a set. A long name
+ * wraps onto a second line at that same size instead of shrinking on its own.
+ */
+function layoutDetails(ctx: CanvasRenderingContext2D, name: string, indexNumber: string, batchName: string, tamil: string, english: string) {
+  const fits = (text: string, family: string, size: number) => {
     ctx.font = `700 ${size}px ${family}`;
-    return lines.every((line) => ctx.measureText(line).width <= maxWidth);
+    return ctx.measureText(text).width <= TEXT_WIDTH;
   };
-  for (let size = 38; size >= 30; size -= 2) if (fits([name], size)) return { size, lines: [name] };
-  const words = name.trim().split(/\s+/);
-  if (words.length < 2) return { size: 28, lines: [name] };
-  let split = 1;
-  const widthDifference = (at: number) => Math.abs(ctx.measureText(words.slice(0, at).join(" ")).width - ctx.measureText(words.slice(at).join(" ")).width);
-  for (let i = 2; i < words.length; i++) if (widthDifference(i) < widthDifference(split)) split = i;
-  const lines = [words.slice(0, split).join(" "), words.slice(split).join(" ")];
-  for (let size = 36; size >= 22; size -= 2) if (fits(lines, size)) return { size, lines };
-  return { size: 22, lines };
+  const heightOf = (lines: DetailLine[], size: number) => lines.length * LABEL_LINE + lines.reduce((n, l) => n + l.values.length, 0) * size * VALUE_LINE + (lines.length - 1) * ROW_GAP;
+
+  for (let size = 34; size >= 22; size -= 1) {
+    if (!fits(indexNumber, english, size) || !fits(batchName, english, size)) continue;
+    ctx.font = `700 ${size}px ${tamil}`;
+    const nameLines = fits(name, tamil, size) ? [name] : splitName(ctx, name);
+    if (!nameLines.every((line) => fits(line, tamil, size))) continue;
+    const lines: DetailLine[] = [
+      { label: "பெயர்", labelFamily: tamil, values: nameLines, family: tamil },
+      { label: "சுட்டெண்", labelFamily: tamil, values: [indexNumber], family: english },
+      { label: "Batch", labelFamily: english, values: [batchName], family: english },
+    ];
+    if (heightOf(lines, size) <= AREA_BOTTOM - AREA_TOP || size === 22) return { size, lines, height: heightOf(lines, size) };
+  }
+  // Nothing fits even at the smallest size: draw it there, squeezed to the column width.
+  const lines: DetailLine[] = [
+    { label: "பெயர்", labelFamily: tamil, values: [name], family: tamil },
+    { label: "சுட்டெண்", labelFamily: tamil, values: [indexNumber], family: english },
+    { label: "Batch", labelFamily: english, values: [batchName], family: english },
+  ];
+  return { size: 22, lines, height: heightOf(lines, 22) };
 }
 
 /** Overlay the student's details on the supplied artwork, retaining its photo and QR frames. */
@@ -87,30 +118,23 @@ async function drawCard(canvas: HTMLCanvasElement, student: CardStudent) {
   ctx.drawImage(qr, 751, 288, 216, 216);
   ctx.imageSmoothingEnabled = true;
 
-  const left = 280;
-  const textWidth = 438;
-  ctx.textBaseline = "alphabetic";
-  const label = (text: string, y: number, family = tamilFamily) => {
+  // Each line is drawn on the middle of its own band, so Tamil and English sit at the same height.
+  const { size, lines, height } = layoutDetails(ctx, student.name, indexNumber, batchName, tamilFamily, englishFamily);
+  ctx.textBaseline = "middle";
+  let y = AREA_TOP + (AREA_BOTTOM - AREA_TOP - height) / 2;
+  for (const line of lines) {
     ctx.fillStyle = BLUE;
-    ctx.font = `600 22px ${family}`;
-    ctx.fillText(text, left, y);
-  };
-
-  label("பெயர்", 292);
-  ctx.fillStyle = INK;
-  const name = fitName(ctx, student.name, tamilFamily, textWidth);
-  ctx.font = `700 ${name.size}px ${tamilFamily}`;
-  name.lines.forEach((line, i) => ctx.fillText(line, left, 333 + i * 42, textWidth));
-
-  label("சுட்டெண்", 409);
-  ctx.fillStyle = INK;
-  fitText(ctx, indexNumber, englishFamily, 700, 34, 22, textWidth);
-  ctx.fillText(indexNumber, left, 447, textWidth);
-
-  label("Batch", 485, englishFamily);
-  ctx.fillStyle = INK;
-  fitText(ctx, batchName, englishFamily, 700, 32, 20, textWidth);
-  ctx.fillText(batchName, left, 523, textWidth);
+    ctx.font = `600 ${LABEL_SIZE}px ${line.labelFamily}`;
+    ctx.fillText(line.label, TEXT_LEFT, y + LABEL_LINE / 2);
+    y += LABEL_LINE;
+    ctx.fillStyle = INK;
+    ctx.font = `700 ${size}px ${line.family}`;
+    for (const value of line.values) {
+      ctx.fillText(value, TEXT_LEFT, y + (size * VALUE_LINE) / 2, TEXT_WIDTH);
+      y += size * VALUE_LINE;
+    }
+    y += ROW_GAP;
+  }
 }
 
 /**
@@ -161,7 +185,7 @@ export function StudentIdCardModal({ student, onClose }: { student: CardStudent;
           __html: `@media print { body * { visibility: hidden; } #printable-id-card { visibility: ${ready ? "visible" : "hidden"}; position: fixed; left: 0; top: 0; width: 85.6mm; height: auto; border: 0; border-radius: 0; } }`,
         }}
       />
-      <div role="dialog" aria-modal="true" aria-label={`${student.name} - மாணவர் அடையாள அட்டை`} className="w-full max-w-lg rounded-[var(--card-radius)] border border-border bg-card p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-label={`${student.name} - மாணவர் அடையாள அட்டை`} className="w-full max-w-lg rounded-(--card-radius) border border-border bg-card p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-5 flex items-center justify-between gap-3 print:hidden">
           <h3 className="text-lg font-semibold text-foreground">மாணவர் அடையாள அட்டை</h3>
           <div className="flex gap-2">

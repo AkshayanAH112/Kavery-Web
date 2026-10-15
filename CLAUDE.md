@@ -106,6 +106,14 @@ database page returning 500 until it is restarted.
   with no name is not a student yet and is left out (the preview says how many). Imported students
   have `guardianName`/`guardianPhone` = `""` (the columns are NOT NULL); `studentDoc` reports that
   as missing. The club's own sheet must never be copied into the repo — test with synthetic data.
+- **The detailed student sheet** (`lib/keda/details-sheet.ts`, `POST /api/students/sheet`): one row
+  per student with an "Index number" and a "Name" heading and any of the other fields. Students →
+  Download Excel writes it (the filtered list; phones as text); the same import page reads it back
+  and tells it from a paper list by those headings. The index number is the key: a registered
+  number updates that student, anything else registers a new one. A blank cell never clears a
+  value, and the index number cannot be changed from a sheet. `planSheet()` is pure and runs in the
+  browser for the preview and again on the server before saving; if any row sent has a problem,
+  nothing is saved.
 - **Student details are typed in Tamil with Bamini keys** (`components/keda/bamini-input.tsx`): use
   `BaminiInput` for any free-text field about a student (name, school, address, guardian, the search
   box), never for phone or index numbers. It converts each key as it is typed, so only Unicode Tamil
@@ -155,10 +163,11 @@ database page returning 500 until it is restarted.
     link becomes the subscriber's language.
   - A student brought in by the spreadsheet import has no phone on file, so only the card opens them
     until staff add a guardian phone.
-- **The grade on a student card** (`gradeLine()` in `components/keda/student-id-card-modal.tsx`) is
-  the whole course — "4 & 5 (2026/27)" — when the student's batch has `autoPromote` on, because the
-  card is printed once and the student moves up in January. A batch that only teaches two grades
-  side by side (no `autoPromote`) still prints the student's own grade.
+- **The student card** (`components/keda/student-id-card-modal.tsx`) draws name, index number and
+  batch name over `public/brand/keda-id-card-template.png`. The three values share one size (the
+  largest at which all fit) and one spacing, centred beside the photo frame; a long name wraps to a
+  second line at that size rather than shrinking alone. The batch name, not the grade, is printed,
+  because the card is printed once and the student moves up in January.
 - **Student photos** are for the ID card and are private, like members' files (`lib/private-files.ts`):
   stored under `students/` in R2, added or replaced on the student's page
   (`POST /api/students/[id]/photo`), and read back only through `GET /api/students/[id]/photo` by
