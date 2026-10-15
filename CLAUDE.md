@@ -176,7 +176,8 @@ database page returning 500 until it is restarted.
   student without a photo rather than no student. A photo address sent by a client is never stored, and the parent
   page never includes the photo.
 - **Site details** (`lib/site-settings.ts`, `/api/site-settings`, console → Site details): contact
-  lines, the About page's text in both languages, class times and office bearers. The About page
+  lines, the About page's text in both languages, class times, office bearers, and contact people
+  (club or KEDA, name, phone — listed under Contact with call and WhatsApp links). The About page
   (`/[locale]/about`) shows what was entered and falls back to the standard wording or leaves a line
   out — it must never state a fact about the club that nobody entered. Text is rendered as text.
 - **Club membership** (`lib/membership/`, `components/members/`, `/api/members`, `/api/public/members`,

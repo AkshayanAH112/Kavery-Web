@@ -6,6 +6,8 @@
  */
 export type Bilingual = { en: string; ta: string };
 export type Officer = { org: "ksc" | "keda"; role: string; name: string };
+/** Someone the public can phone (or WhatsApp) about the club or about KEDA. */
+export type Contact = { org: "ksc" | "keda"; name: string; phone: string };
 
 /** These are the values until someone changes them. */
 export const DEFAULT_SETTINGS = {
@@ -20,10 +22,14 @@ export const DEFAULT_SETTINGS = {
   /** When and where KEDA's classes are held. */
   classInfo: { en: "", ta: "" } as Bilingual,
   officers: [] as Officer[],
+  contacts: [] as Contact[],
 };
 export type SiteSettings = typeof DEFAULT_SETTINGS;
 
 const MAX_OFFICERS = 40;
+const MAX_CONTACTS = 12;
+/** Digits with an optional leading +, as typed: "+94 77 352 3843" or "077 352 3843". */
+const isPhone = (value: string) => /^\+?[\d\s-]{9,18}$/.test(value) && value.replace(/\D/g, "").length >= 9;
 const str = (value: unknown, max: number) => (typeof value === "string" ? value.trim().slice(0, max) : "");
 const bilingual = (value: unknown, max: number): Bilingual => {
   const v = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
@@ -61,6 +67,13 @@ export function normalizeSiteSettings(value: unknown): SiteSettings {
       })
       .filter((o) => o.role && o.name)
       .slice(0, MAX_OFFICERS),
+    contacts: (Array.isArray(v.contacts) ? v.contacts : [])
+      .map((c): Contact => {
+        const item = (c && typeof c === "object" ? c : {}) as Record<string, unknown>;
+        return { org: item.org === "keda" ? "keda" : "ksc", name: str(item.name, 80), phone: str(item.phone, 24) };
+      })
+      .filter((c) => c.name && isPhone(c.phone))
+      .slice(0, MAX_CONTACTS),
   };
 }
 
@@ -74,8 +87,24 @@ export function siteSettingsError(value: unknown): string | null {
   const validGrade = (g: unknown) => Number.isInteger(Number(g)) && Number(g) >= 1 && Number(g) <= 13;
   if (!Array.isArray(v.kedaGrades) || v.kedaGrades.length === 0 || !v.kedaGrades.every(validGrade)) return "Choose the grades KEDA teaches (whole numbers from 1 to 13, at least one).";
   if (Array.isArray(v.officers) && v.officers.length > MAX_OFFICERS) return `No more than ${MAX_OFFICERS} office bearers can be listed.`;
+  if (Array.isArray(v.contacts)) {
+    if (v.contacts.length > MAX_CONTACTS) return `No more than ${MAX_CONTACTS} contact people can be listed.`;
+    for (const c of v.contacts as Record<string, unknown>[]) {
+      const name = str(c?.name, 80);
+      const phone = str(c?.phone, 24);
+      if (!name && !phone) continue;
+      if (!name) return "Every contact person needs a name.";
+      if (!isPhone(phone)) return `The phone number for ${name} is not valid. Use digits, for example +94 77 123 4567 or 077 123 4567.`;
+    }
+  }
   return null;
 }
+
+/** A number for wa.me: digits only, with Sri Lanka's 94 in place of a leading 0. */
+export const whatsappNumber = (phone: string) => {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length === 10 && digits.startsWith("0") ? `94${digits.slice(1)}` : digits;
+};
 
 /** Free text an administrator typed → paragraphs. It is shown as text, never as HTML. */
 export const paragraphs = (text: string) => text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
