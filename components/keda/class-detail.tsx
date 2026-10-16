@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Loader2, ArrowLeft, CheckCircle2, XCircle, Search, Pencil, Trash2, X, AlertTriangle, Lock, LockOpen } from "lucide-react";
 import { ConfirmDialog, AlertModal, Modal } from "@/components/console/confirm-dialog";
+import { searchText } from "@/lib/keda/bamini";
 
 export default function ClassAttendancePage() {
   const params = useParams();
@@ -121,7 +122,7 @@ export default function ClassAttendancePage() {
   const { classSession, roster } = data;
 
   const filteredRoster = roster.filter((r: any) =>
-    r.student.name.toLowerCase().includes(searchQuery.toLowerCase())
+    searchText(r.student.name).includes(searchText(searchQuery))
   );
 
   const presentCount = roster.filter((r: any) => r.isPresent).length;

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { BaminiInput } from "@/components/keda/bamini-input";
+import { searchText } from "@/lib/keda/bamini";
 
 export type StudentChoices = { schools: string[]; addresses: string[] };
 
@@ -31,9 +32,9 @@ export function ChoiceInput({ options, value, onValueChange, onBlur, className =
   const listId = useId();
   const list = useRef<HTMLUListElement>(null);
 
-  const needle = value.trim().toLowerCase();
+  const needle = searchText(value.trim());
   // While the box holds one of the choices exactly (or nothing), the whole list is shown.
-  const shown = !needle || options.some((o) => o.toLowerCase() === needle) ? options : options.filter((o) => o.toLowerCase().includes(needle));
+  const shown = !needle || options.some((o) => searchText(o) === needle) ? options : options.filter((o) => searchText(o).includes(needle));
   const expanded = open && shown.length > 0;
 
   useEffect(() => {

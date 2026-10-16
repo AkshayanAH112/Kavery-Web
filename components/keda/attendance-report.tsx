@@ -14,6 +14,7 @@ import {
   Calendar,
   AlertTriangle,
 } from "lucide-react";
+import { searchText } from "@/lib/keda/bamini";
 
 const STATUS_LABEL: Record<string, string> = {
   present: "Present",
@@ -147,11 +148,11 @@ export default function AttendanceExportPage() {
     XLSX.writeFile(wb, `KEDA_Absentees_${from}_to_${to}.xlsx`);
   };
 
-  const query = searchQuery.trim().toLowerCase();
+  const query = searchText(searchQuery.trim());
   const currentList = activeTab === "absentees" ? absenteeRows : result?.rows || [];
   const filteredRows = currentList.filter(
     (row: any) =>
-      row.name.toLowerCase().includes(query) ||
+      searchText(row.name).includes(query) ||
       (row.registrationNumber ?? "").toLowerCase().includes(query) ||
       (row.guardianPhone ?? "").toLowerCase().includes(query)
   );

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { ConfirmDialog, AlertModal } from "@/components/console/confirm-dialog";
 import { useCurrentUser } from "@/components/console/current-user";
+import { searchText } from "@/lib/keda/bamini";
 
 type NotificationStatus = "pending" | "acknowledged" | "resolved" | "all";
 type NotificationType = "all" | "parent_warning" | "admin_critical";
@@ -141,12 +142,12 @@ function NotificationsContent() {
     }
   };
 
-  const query = searchQuery.trim().toLowerCase();
+  const query = searchText(searchQuery.trim());
   const filtered = notifications.filter((n) => {
     const studentObj = typeof n.studentId === "object" ? n.studentId : null;
     const phone = studentObj?.guardianPhone ?? "";
     return (
-      (n.studentName ?? "").toLowerCase().includes(query) ||
+      searchText(n.studentName ?? "").includes(query) ||
       (n.registrationNumber ?? "").toLowerCase().includes(query) ||
       phone.toLowerCase().includes(query)
     );

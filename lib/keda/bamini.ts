@@ -42,6 +42,16 @@ const VOWELS: Record<string, string> = {
 };
 
 const PREFIX_SIGNS: Record<string, string> = { n: "ெ", N: "ே", i: "ை" };
+
+/**
+ * Bamini draws க் and ஷ side by side, but in Unicode க + ் + ஷ is the conjunct
+ * க்ஷ, which fonts draw as one letter. A zero-width non-joiner between them
+ * keeps the name looking as it was typed: க் then ஷ, not the joined letter.
+ */
+const ZWNJ = String.fromCharCode(0x200c);
+
+/** Text as a search compares it: case and the invisible joiners left out, so a name matches however it was typed. */
+export const searchText = (text: string) => text.replace(/\p{Cf}/gu, "").toLowerCase();
 const SUFFIX_SIGNS: Record<string, string> = { h: "ா", p: "ி", P: "ீ", ";": "்" };
 
 /** A sign typed before the consonant plus one typed after it make a single two-part vowel. */
@@ -82,6 +92,7 @@ export function baminiToUnicode(input: string): string {
 
     if (consonant) {
       i += 1;
+      if (consonant === "ஷ" && out.endsWith("க்")) out += ZWNJ;
       if (pending) {
         const after = input[i] ?? "";
         const twoPart = TWO_PART[pending + after];

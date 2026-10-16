@@ -12,6 +12,7 @@ import { isValidPhoneLocal, PHONE_HINT } from "@/lib/phone";
 import { shrinkImage } from "@/lib/upload-client";
 import { BaminiInput, BaminiToggle, useBaminiTyping } from "@/components/keda/bamini-input";
 import { ChoiceInput, useStudentChoices } from "@/components/keda/choice-input";
+import { searchText } from "@/lib/keda/bamini";
 
 export default function StudentsPage() {
   return (
@@ -187,7 +188,7 @@ function StudentsPageContent() {
   };
 
   const filteredStudents = students.filter(s =>
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+    searchText(s.name).includes(searchText(searchQuery)) &&
     (filterBatch === "" || s.batchId?._id === filterBatch) &&
     (filterGrade === "" || String(s.grade) === filterGrade)
   );

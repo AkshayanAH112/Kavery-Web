@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { Loader2, ArrowLeft, Search, Download, Upload, Pencil, Trash2, X, Globe, Lock, CalendarX, FileSpreadsheet } from "lucide-react";
 import { ConfirmDialog, AlertModal } from "@/components/console/confirm-dialog";
+import { searchText } from "@/lib/keda/bamini";
 
 export default function ExamDetailPage() {
   const params = useParams();
@@ -326,10 +327,10 @@ export default function ExamDetailPage() {
   // two can never disagree about who came first.
   const { scored, rankByStudentId, rankedRoster } = buildRanking(roster);
 
-  const query = searchQuery.trim().toLowerCase();
+  const query = searchText(searchQuery.trim());
   const filteredRoster = rankedRoster.filter(
     (r: any) =>
-      r.student.name.toLowerCase().includes(query) ||
+      searchText(r.student.name).includes(query) ||
       (r.student.registrationNumber ?? "").toLowerCase().includes(query)
   );
 
