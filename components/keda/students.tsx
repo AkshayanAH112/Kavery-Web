@@ -11,6 +11,7 @@ import { useCurrentUser } from "@/components/console/current-user";
 import { isValidPhoneLocal, PHONE_HINT } from "@/lib/phone";
 import { shrinkImage } from "@/lib/upload-client";
 import { BaminiInput, BaminiToggle, useBaminiTyping } from "@/components/keda/bamini-input";
+import { ChoiceInput, useStudentChoices } from "@/components/keda/choice-input";
 
 export default function StudentsPage() {
   return (
@@ -34,6 +35,7 @@ function StudentsPageContent() {
   const { user } = useCurrentUser();
   // Names, schools and addresses are kept in Tamil, typed with Bamini keys.
   const [bamini, setBamini] = useBaminiTyping();
+  const [choices, reloadChoices] = useStudentChoices();
 
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [blockedDeleteMessage, setBlockedDeleteMessage] = useState<string | null>(null);
@@ -131,6 +133,7 @@ function StudentsPageContent() {
         closeRegistration();
         setFormData({ name: "", school: "", address: "", guardianName: "", guardianPhone: "", batchId: batches[0]?._id || "", grade: "3" });
         fetchData();
+        reloadChoices();
       } else {
         const err = await res.json() as any;
         setFormError(err.error);
@@ -427,8 +430,8 @@ function StudentsPageContent() {
               </div>
               <BaminiToggle on={bamini} onChange={setBamini} />
               <div><label className="field-label">Full Name</label><BaminiInput bamini={bamini} required className="field" value={formData.name} onValueChange={v => setFormData(prev => ({ ...prev, name: v }))} /></div>
-              <div><label className="field-label">School</label><BaminiInput bamini={bamini} className="field" value={formData.school} onValueChange={v => setFormData(prev => ({ ...prev, school: v }))} /></div>
-              <div><label className="field-label">Address</label><BaminiInput bamini={bamini} className="field" value={formData.address} onValueChange={v => setFormData(prev => ({ ...prev, address: v }))} /></div>
+              <div><label className="field-label">School</label><ChoiceInput options={choices.schools} bamini={bamini} className="field" value={formData.school} onValueChange={v => setFormData(prev => ({ ...prev, school: v }))} /></div>
+              <div><label className="field-label">Address</label><ChoiceInput options={choices.addresses} bamini={bamini} className="field" value={formData.address} onValueChange={v => setFormData(prev => ({ ...prev, address: v }))} /></div>
               <div><label className="field-label">Guardian Name</label><BaminiInput bamini={bamini} required className="field" value={formData.guardianName} onValueChange={v => setFormData(prev => ({ ...prev, guardianName: v }))} /></div>
               <div>
                 <label className="field-label">Guardian Phone</label>

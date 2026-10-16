@@ -120,7 +120,9 @@ database page returning 500 until it is restarted.
   is ever stored. A key cannot be converted alone ("n", "f", "h" are one syllable), which is why the
   component keeps the run of keys typed so far (`typeBamini()` in `lib/keda/bamini.ts`). The switch
   (`BaminiToggle`, remembered per device, on by default) is needed for English: with it on, a comma
-  is the letter இ.
+  is the letter இ. School and address use `ChoiceInput` (`components/keda/choice-input.tsx`), the same
+  box with a dropdown of the values already on students (`GET /api/students/choices`, most used
+  first) — there is no separate list to maintain; a new value joins it once a student is saved with it.
 - **Yearly promotion** (`lib/keda/promotion.ts`, `POST /api/cron/promote-students`): moves grades
   highest first and stamps each batch per year in `counters`. Both guards fix real faults in the
   KCSC job it came from (a Grade 3 student promoted twice in one run; a second run promoting
