@@ -117,7 +117,9 @@ database page returning 500 until it is restarted.
 - **Student details are typed in Tamil with Bamini keys** (`components/keda/bamini-input.tsx`): use
   `BaminiInput` for any free-text field about a student (name, school, address, guardian, the search
   box), never for phone or index numbers. It converts each key as it is typed, so only Unicode Tamil
-  is ever stored. A key cannot be converted alone ("n", "f", "h" are one syllable), which is why the
+  is ever stored. க்ஷ is always stored with a zero-width non-joiner (`keepLettersApart()`, also applied by
+  `text()` in `lib/keda/server.ts` on every save) so it shows as க் ஷ, as Bamini draws it, not the joined
+  letter; searches ignore the joiner. A key cannot be converted alone ("n", "f", "h" are one syllable), which is why the
   component keeps the run of keys typed so far (`typeBamini()` in `lib/keda/bamini.ts`). The switch
   (`BaminiToggle`, remembered per device, on by default) is needed for English: with it on, a comma
   is the letter இ. School and address use `ChoiceInput` (`components/keda/choice-input.tsx`), the same

@@ -10,6 +10,7 @@
  */
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { keepLettersApart } from "@/lib/keda/bamini";
 
 const { batches: B, students: S, classSessions: C, counters, exams: E, marks: M } = schema;
 
@@ -218,7 +219,8 @@ export function newQrCode(grade: number) {
 export const isValidLocalPhone = (value: unknown): value is string => typeof value === "string" && /^0\d{9}$/.test(value.replace(/[\s-]/g, ""));
 export const PHONE_ERROR = "Guardian phone must be a valid 10-digit number starting with 0 (e.g. 0701212234)";
 
-export const text = (value: unknown, max: number) => (typeof value === "string" ? value.trim().slice(0, max) : "");
+/** A free-text field from a request. Tamil is stored with க்ஷ written apart (see keepLettersApart), however it was typed. */
+export const text = (value: unknown, max: number) => (typeof value === "string" ? keepLettersApart(value.trim()).slice(0, max) : "");
 
 export function parseDate(value: unknown): Date | null {
   if (!value || (typeof value !== "string" && typeof value !== "number")) return null;

@@ -45,10 +45,19 @@ const PREFIX_SIGNS: Record<string, string> = { n: "ெ", N: "ே", i: "ை" };
 
 /**
  * Bamini draws க் and ஷ side by side, but in Unicode க + ் + ஷ is the conjunct
- * க்ஷ, which fonts draw as one letter. A zero-width non-joiner between them
- * keeps the name looking as it was typed: க் then ஷ, not the joined letter.
+ * க்ஷ, which fonts draw as one letter (with every vowel sign: க்ஷா, க்ஷி, க்ஷெ…).
+ * A zero-width non-joiner between them keeps the name looking as it was typed:
+ * க் then ஷ, not the joined letter. ஸ் + ரீ typed as two keys is the same case
+ * (fonts join it into ஸ்ரீ); Bamini's own ஸ்ரீ key ("=") stays joined.
  */
 const ZWNJ = String.fromCharCode(0x200c);
+
+/**
+ * Text from anywhere (a Tamil phone keyboard, a sheet, a name saved before the
+ * joiner was added) with க்ஷ written apart. Safe to run twice. ஸ்ரீ is left
+ * alone here: outside Bamini typing, nobody can tell whether it was meant joined.
+ */
+export const keepLettersApart = (text: string) => text.replace(/க்ஷ/g, `க்${ZWNJ}ஷ`);
 
 /** Text as a search compares it: case and the invisible joiners left out, so a name matches however it was typed. */
 export const searchText = (text: string) => text.replace(/\p{Cf}/gu, "").toLowerCase();
@@ -92,7 +101,7 @@ export function baminiToUnicode(input: string): string {
 
     if (consonant) {
       i += 1;
-      if (consonant === "ஷ" && out.endsWith("க்")) out += ZWNJ;
+      if ((consonant === "ஷ" && out.endsWith("க்")) || (consonant === "ர" && out.endsWith("ஸ்"))) out += ZWNJ;
       if (pending) {
         const after = input[i] ?? "";
         const twoPart = TWO_PART[pending + after];

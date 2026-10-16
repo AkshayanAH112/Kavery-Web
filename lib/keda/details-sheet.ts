@@ -9,6 +9,7 @@
  * Pure (no spreadsheet library, no database), so the browser's preview and the
  * server's save run the same checks: `planSheet()` is called on both sides.
  */
+import { keepLettersApart } from "./bamini";
 import { INDEX_NUMBER } from "./import-sheet";
 
 export const DETAIL_FIELDS = ["registrationNumber", "name", "grade", "batch", "school", "address", "guardianName", "guardianPhone", "whatsapp", "notes"] as const;
@@ -76,7 +77,7 @@ export function readDetailsSheet(rows: unknown[][]): SheetRow[] | null {
     const found: SheetRow[] = [];
     for (let i = r + 1; i < rows.length; i++) {
       const values: SheetValues = {};
-      for (const [field, c] of columns) values[field] = String(rows[i][c] ?? "").trim();
+      for (const [field, c] of columns) values[field] = keepLettersApart(String(rows[i][c] ?? "").trim());
       if (!values.registrationNumber && !values.name) continue;
       found.push({ line: i + 1, values });
     }
