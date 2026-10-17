@@ -19,7 +19,9 @@ type Props = {
 /**
  * Four layers that travel at different speeds as the hero scrolls away:
  * the founding year (slowest), the two crest-coloured sashes, the crest, and
- * the headline (which also fades). With reduced motion everything stays put.
+ * the headline (which also fades). On load the layers arrive in turn and the
+ * crest keeps floating (the `hero-*` classes in globals.css). With reduced
+ * motion everything stays put.
  */
 export function Hero({ eyebrow, line1, line2, lead, founded, actions, children }: Props) {
   const ref = useRef<HTMLElement>(null);
@@ -38,49 +40,52 @@ export function Hero({ eyebrow, line1, line2, lead, founded, actions, children }
     <section ref={ref} className="grain relative isolate flex min-h-svh flex-col overflow-hidden bg-bg">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
         {/* floodlight */}
-        <div className="absolute right-[-20%] top-[-30%] h-[90vh] w-[90vh] rounded-full bg-brand opacity-30 blur-[140px]" />
+        <div className="hero-glow absolute right-[-20%] top-[-30%] h-[90vh] w-[90vh] rounded-full bg-brand opacity-30 blur-[140px]" />
+        <motion.div style={{ y: reduce ? 0 : sashRedY }} className="hero-sash-red absolute right-[-38vw] top-[4vh] h-[30vh] w-[105vw] rotate-[-24deg] bg-brand lg:right-[-30vw] lg:w-[80vw]" />
+        <motion.div style={{ y: reduce ? 0 : sashYellowY }} className="hero-sash-yellow absolute right-[-38vw] top-[41vh] h-[1.6vh] w-[64vw] rotate-[-24deg] bg-accent sm:w-[105vw] lg:right-[-30vw] lg:top-[45vh] lg:w-[80vw]" />
+        {/* The year is drawn over the sashes: on a phone the red one crosses it, and underneath it hid "81". */}
         <motion.div style={{ y: reduce ? 0 : yearY }} className="absolute left-[-2vw] top-[9vh] select-none">
           <span
-            className="display block text-[42vw] leading-none text-transparent lg:text-[30vw]"
-            style={{ WebkitTextStroke: "1.5px rgb(255 255 255 / 0.07)" }}
+            className="hero-year display block text-[42vw] leading-none text-transparent lg:text-[30vw]"
+            style={{ WebkitTextStroke: "1.5px rgb(255 255 255 / 0.11)" }}
           >
             {founded}
           </span>
         </motion.div>
-        <motion.div style={{ y: reduce ? 0 : sashRedY }} className="absolute right-[-38vw] top-[4vh] h-[30vh] w-[105vw] rotate-[-24deg] bg-brand lg:right-[-30vw] lg:w-[80vw]" />
-        <motion.div style={{ y: reduce ? 0 : sashYellowY }} className="absolute right-[-38vw] top-[41vh] h-[1.6vh] w-[64vw] rotate-[-24deg] bg-accent sm:w-[105vw] lg:right-[-30vw] lg:top-[45vh] lg:w-[80vw]" />
         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-bg to-transparent" />
       </div>
 
       <motion.div
         style={{ y: reduce ? 0 : crestY, rotate: reduce ? 0 : crestRotate }}
-        className="pointer-events-none absolute right-[6vw] top-[calc(var(--nav-h)+1.5rem)] z-0 w-[34vw] max-w-38 sm:max-w-52 lg:right-[7vw] lg:top-[15vh] lg:w-[30vw] lg:max-w-108"
+        className="hero-crest pointer-events-none absolute right-[6vw] top-[calc(var(--nav-h)+1.5rem)] z-0 w-[34vw] max-w-38 sm:max-w-52 lg:right-[7vw] lg:top-[15vh] lg:w-[30vw] lg:max-w-108"
       >
-        <Image
-          src="/brand/ksc-crest.webp"
-          alt="Kavery Sports Club crest"
-          width={900}
-          height={890}
-          loading="eager"
-          fetchPriority="high"
-          className="h-auto w-full drop-shadow-[0_30px_60px_rgb(0_0_0/0.55)]"
-        />
+        <div className="hero-float">
+          <Image
+            src="/brand/ksc-crest.webp"
+            alt="Kavery Sports Club crest"
+            width={900}
+            height={890}
+            loading="eager"
+            fetchPriority="high"
+            className="h-auto w-full drop-shadow-[0_30px_60px_rgb(0_0_0/0.55)]"
+          />
+        </div>
       </motion.div>
 
       <div className="container-x relative z-10 flex flex-1 flex-col justify-end pb-10 pt-[calc(var(--nav-h)+11rem)] lg:pb-14 lg:pt-[calc(var(--nav-h)+4rem)]">
         <motion.div style={{ y: reduce ? 0 : copyY, opacity: reduce ? 1 : copyOpacity }}>
-          <p className="eyebrow text-accent">{eyebrow}</p>
+          <p className="hero-in eyebrow text-accent">{eyebrow}</p>
           <h1 className="display mt-4">
-            <span className="hero-line1 block">{line1}</span>
+            <span className="hero-in hero-line1 block [--d:120ms]">{line1}</span>
             {/* The lines are blocks, so this space is invisible — but without it the heading's text reads "KaverySports Club" to search engines. */}{" "}
-            <span className="hero-line2 block text-accent">{line2}</span>
+            <span className="hero-in hero-line2 block text-accent [--d:240ms]">{line2}</span>
           </h1>
-          <p className="mt-7 max-w-136 text-lg leading-relaxed text-muted-foreground">{lead}</p>
-          <div className="mt-8 flex flex-wrap gap-x-5 gap-y-4 pl-1">{actions}</div>
+          <p className="hero-in mt-7 max-w-136 [--d:380ms] text-lg leading-relaxed text-muted-foreground">{lead}</p>
+          <div className="hero-in mt-8 flex flex-wrap gap-x-5 gap-y-4 pl-1 [--d:500ms]">{actions}</div>
         </motion.div>
       </div>
 
-      <div className="relative z-10">{children}</div>
+      <div className="hero-in relative z-10 [--d:650ms]">{children}</div>
     </section>
   );
 }

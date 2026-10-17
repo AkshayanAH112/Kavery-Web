@@ -8,12 +8,14 @@ import { ExpandShowcase } from "@/components/site/ExpandShowcase";
 import { Hero } from "@/components/site/Hero";
 import { LiveRefresh } from "@/components/site/LiveRefresh";
 import { MatchCard, StatusChip, formatMatchTime, overs, resultLine } from "@/components/site/MatchCard";
+import { OpeningCountdown } from "@/components/site/OpeningCountdown";
 import { CountUp, Parallax, Reveal } from "@/components/site/motion";
 import { formatDate } from "@/components/site/PageShell";
 import { isLocale } from "@/i18n/config";
 import { getAlbums } from "@/lib/content/public";
 import { getSecret } from "@/lib/db";
-import { CLUB, getHomeData, getSettings } from "@/lib/site";
+import { TIME_ZONE } from "@/lib/dates";
+import { CLUB, getHomeData, getOpening, getSettings } from "@/lib/site";
 
 /** How many tiles a showcase row holds. More than five and the closed ones get too thin to read. */
 const SHOWCASE_SIZE = 5;
@@ -37,6 +39,20 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
     { value: data.stats.students, label: t("stats.students") },
     { value: data.stats.matchesScored, label: t("stats.matches") },
   ].filter((s) => s.value > 0);
+  const opening = getOpening();
+  const intl = locale === "ta" ? "ta-LK" : "en-GB";
+  const openingLabels = opening && {
+    eyebrow: t("opening.eyebrow"),
+    when: t("opening.when", {
+      date: new Intl.DateTimeFormat(intl, { timeZone: TIME_ZONE, weekday: "long", day: "numeric", month: "long" }).format(opening.at),
+      time: new Intl.DateTimeFormat(intl, { timeZone: TIME_ZONE, hour: "numeric", minute: "2-digit", hour12: true }).format(opening.at),
+    }),
+    days: t("opening.days"),
+    hours: t("opening.hours"),
+    minutes: t("opening.minutes"),
+    seconds: t("opening.seconds"),
+    open: t("opening.open"),
+  };
 
   return (
     <>
@@ -60,6 +76,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           </>
         }
       >
+        {opening && openingLabels && <OpeningCountdown at={opening.at} now={opening.now} labels={openingLabels} />}
         {/* Ticker: the one live, next or latest match, straight from the scoring database. */}
         <a href={featured ? `${base}/live/match/${featured.id}` : `${base}#matches`} className="group block border-t border-line bg-surface/85 backdrop-blur-md transition-colors hover:bg-surface">
           <div className="container-x flex min-h-20 flex-wrap items-center gap-x-8 gap-y-2 py-4">
@@ -128,7 +145,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       )}
 
       {/* Match centre */}
-      <section id="matches" className="py-[var(--section-y)]">
+      <section id="matches" className="py-(--section-y)">
         <div className="container-x">
           <Reveal className="max-w-3xl">
             <p className="eyebrow text-brand-text">{t("matches.eyebrow")}</p>
@@ -139,14 +156,14 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           {board.length > 0 ? (
             <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
               {board.map((match, i) => (
-                <Reveal key={match.id} delay={Math.min(i, 5) * 0.06}>
+                <Reveal key={match.id} delay={Math.min(i, 5) * 0.06} className="min-w-0">
                   <MatchCard match={match} locale={locale} />
                 </Reveal>
               ))}
             </div>
           ) : (
             <Reveal className="mt-12">
-              <div className="relative overflow-hidden rounded-[var(--card-radius)] border border-line bg-surface p-8 sm:p-12">
+              <div className="relative overflow-hidden rounded-(--card-radius) border border-line bg-surface p-8 sm:p-12">
                 <svg aria-hidden viewBox="0 0 200 200" className="absolute -right-10 -top-10 h-56 w-56 text-brand opacity-70">
                   <circle cx="100" cy="100" r="92" fill="currentColor" />
                   <path d="M38 28c34 44 34 100 0 144M162 28c-34 44-34 100 0 144" fill="none" stroke="#fff" strokeWidth="3" strokeDasharray="2 9" strokeLinecap="round" />
@@ -173,9 +190,9 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       </section>
 
       {/* The club */}
-      <section id="club" className="relative overflow-hidden border-t border-line py-[var(--section-y)]">
-        <Parallax distance={160} className="pointer-events-none absolute -right-[6vw] top-10 hidden select-none lg:block">
-          <Image src="/brand/ksc-crest.webp" alt="Kavery Sports Club crest" width={900} height={890} className="h-auto w-[36vw] max-w-[34rem] opacity-[0.07] grayscale" />
+      <section id="club" className="relative overflow-hidden border-t border-line py-(--section-y)">
+        <Parallax distance={160} className="pointer-events-none absolute right-[-6vw] top-10 hidden select-none lg:block">
+          <Image src="/brand/ksc-crest.webp" alt="Kavery Sports Club crest" width={900} height={890} className="h-auto w-[36vw] max-w-136 opacity-[0.07] grayscale" />
         </Parallax>
         <div className="container-x relative grid gap-14 lg:grid-cols-[1.1fr_0.9fr] lg:gap-20">
           <Reveal className="min-w-0">
@@ -210,7 +227,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
 
       {/* KEDA — its own daylight theme, cut in on the crest's diagonal. */}
       <section id="education" className="theme-keda relative bg-bg text-fg [clip-path:polygon(0_5vw,100%_0,100%_100%,0_100%)]">
-        <div className="container-x grid gap-14 pb-[var(--section-y)] pt-[calc(var(--section-y)+5vw)] lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
+        <div className="container-x grid gap-14 pb-(--section-y) pt-[calc(var(--section-y)+5vw)] lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
           <Parallax distance={90} className="mx-auto w-full max-w-xs self-center lg:max-w-sm">
             <div className="-rotate-3 rounded-2xl bg-white p-6 shadow-[0_30px_70px_-20px_rgb(7_27_69/0.45)] ring-1 ring-line">
               <Image src="/brand/keda-logo.webp" alt={CLUB.keda.name} width={640} height={674} className="h-auto w-full" />
@@ -267,7 +284,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       </section>
 
       {/* News and gallery are always on the page: with something in them they are the showcase rows, without they say what will appear. */}
-      <section id="news" className="py-[var(--section-y)]">
+      <section id="news" className="py-(--section-y)">
         <div className="container-x flex flex-wrap items-end justify-between gap-6">
           <Reveal>
             <p className="eyebrow text-brand-text">{t("news.eyebrow")}</p>
@@ -302,7 +319,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         )}
       </section>
 
-      <section id="gallery" className="border-t border-line py-[var(--section-y)]">
+      <section id="gallery" className="border-t border-line py-(--section-y)">
         <div className="container-x flex flex-wrap items-end justify-between gap-6">
           <Reveal>
             <p className="eyebrow text-brand-text">{t("gallery.eyebrow")}</p>
@@ -343,7 +360,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             {CLUB.shortName}
           </span>
         </Parallax>
-        <div className="container-x relative pb-[var(--section-y)] pt-[calc(var(--section-y)+5vw)]">
+        <div className="container-x relative pb-(--section-y) pt-[calc(var(--section-y)+5vw)]">
           <Reveal className="max-w-3xl">
             <p className="eyebrow text-accent">{t("app.eyebrow")}</p>
             <h2 className="display mt-4 h-section">{t("app.title")}</h2>

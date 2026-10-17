@@ -27,6 +27,15 @@
     "ctaEducation": "Free classes",
     "scroll": "Scroll"
   },
+  "opening": {
+    "eyebrow": "Grand opening",
+    "when": "{date} · {time}",
+    "days": "Days",
+    "hours": "Hours",
+    "minutes": "Minutes",
+    "seconds": "Seconds",
+    "open": "We are open!"
+  },
   "marquee": [
     "Cricket",
     "Education",

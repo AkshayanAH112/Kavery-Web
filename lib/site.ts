@@ -12,6 +12,18 @@ export const CLUB = {
   keda: { name: "Kavery Education Development Association", shortName: "KEDA", founded: 2023 },
 } as const;
 
+/**
+ * The grand opening, counted down at the foot of the home page's hero. The band shows from now
+ * until `OPENING_SHOWN_FOR` after it, saying "open" once the time has passed; after that it is gone.
+ */
+export const OPENING = Date.parse("2026-10-18T10:30:00+05:30");
+export const OPENING_SHOWN_FOR = 12 * 60 * 60 * 1000;
+
+/** The opening and the clock it was checked against, or null once the band is no longer shown. */
+export function getOpening(now = Date.now()) {
+  return now < OPENING + OPENING_SHOWN_FOR ? { at: OPENING, now } : null;
+}
+
 export { DEFAULT_SETTINGS, type SiteSettings } from "@/lib/site-settings";
 
 /** Editable in the console under Site details. Each top-level field is one site_settings row. */

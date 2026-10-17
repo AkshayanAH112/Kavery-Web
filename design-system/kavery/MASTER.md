@@ -138,11 +138,15 @@ Scale: hero line 1 `clamp(5rem, min(21vw, 32svh), 17rem)` · hero line 2 half of
 
 ## Motion
 
-Scroll is the only trigger. There is no autoplay beyond the marquee.
+Scroll is the trigger, with one exception: the home page's hero plays an entrance as it opens, and its
+crest keeps floating. Nothing else autoplays beyond the marquee and the countdown.
 
 | Pattern | Where | Notes |
 |---|---|---|
 | Layered parallax | Hero: founding year, two sashes, crest, headline each travel at a different speed | `components/site/Hero.tsx` |
+| Hero entrance | Sashes slide in along their diagonal, the year drifts in, the crest springs in, the copy rises in turn | CSS only (`.hero-*` in `globals.css`), plays once |
+| Float | Hero crest bobs; the floodlight breathes | CSS only, 6s / 9s, infinite |
+| Countdown | Band at the foot of the hero until the opening (`OPENING` in `lib/site.ts`) | `<OpeningCountdown>` — digits roll up as they change |
 | Parallax drift | Crest watermark, KEDA logo tile, the "KSC" ghost word | `<Parallax distance>` |
 | Reveal | Section headings, cards | `<Reveal>` — 28px rise, 700ms, `--ease-out` |
 | Count-up | Stats | `<CountUp>` — the server renders the final number |
@@ -151,10 +155,14 @@ Scroll is the only trigger. There is no autoplay beyond the marquee.
 Rules that were learned the hard way and must hold:
 
 - **Server HTML is always fully visible.** `Reveal` hides content only after hydration and only if it is
-  below the fold. Never render `opacity: 0` on the server.
+  below the fold. Never render `opacity: 0` on the server. The hero entrance is the one exception that
+  starts at `opacity: 0`, and it is a CSS animation, so it finishes with or without JavaScript.
+- **Load animations move `translate` / `scale` / `rotate`, never `transform`.** The same hero elements
+  carry Motion's parallax as an inline `transform`; animating `transform` in CSS would overwrite it.
 - **Reduced motion is read after mount** (`usePrefersReducedMotion`), never during render — reading it
   during render is a hydration mismatch for every user who has it switched on.
-- With reduced motion: no parallax, no reveal, no count-up, marquee stopped, smooth scroll off.
+- With reduced motion: no parallax, no reveal, no count-up, no hero entrance or float, countdown digits
+  change in place, marquee stopped, smooth scroll off.
 - Transitions 150–300ms on hover/focus; 700ms for reveals. Animate `transform` and `opacity` only.
 
 ## Components

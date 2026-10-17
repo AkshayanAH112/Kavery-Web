@@ -41,7 +41,7 @@ export function SiteNav({ home, links, app, language, labels }: Props) {
     <>
       <header
         className={cn(
-          "fixed inset-x-0 top-0 z-50 h-[var(--nav-h)] transition-[background-color,border-color] duration-300",
+          "fixed inset-x-0 top-0 z-50 h-(--nav-h) transition-[background-color,border-color] duration-300",
           solid || open ? "border-b border-line bg-bg/90 backdrop-blur-md" : "border-b border-transparent",
         )}
       >
@@ -69,7 +69,7 @@ export function SiteNav({ home, links, app, language, labels }: Props) {
             >
               {language.label}
             </Link>
-            <a href={app.href} className="btn btn-accent hidden !min-h-11 !px-5 !text-[0.9375rem] sm:inline-flex">
+            <a href={app.href} className="btn btn-accent hidden! min-h-11! px-5! text-[0.9375rem]! sm:inline-flex!">
               <span>{app.label}</span>
             </a>
             <button
@@ -87,7 +87,7 @@ export function SiteNav({ home, links, app, language, labels }: Props) {
       </header>
 
       {open && (
-        <div id="site-menu" className="fixed inset-x-0 bottom-0 top-[var(--nav-h)] z-40 overflow-y-auto bg-bg text-fg xl:hidden">
+        <div id="site-menu" className="fixed inset-x-0 bottom-0 top-(--nav-h) z-40 overflow-y-auto bg-bg text-fg xl:hidden">
           <nav className="container-x flex flex-col py-6">
             {links.map((link) => (
               <Link
