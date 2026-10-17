@@ -7,9 +7,12 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { fontVariables } from "@/app/fonts";
 import { ServiceWorker } from "@/components/pwa/ServiceWorker";
 import { RouteProgress } from "@/components/RouteProgress";
+import { OpeningCountdown } from "@/components/site/OpeningCountdown";
 import { SiteNav } from "@/components/site/SiteNav";
 import { isLocale } from "@/i18n/config";
-import { CLUB, getSettings } from "@/lib/site";
+import { getSession } from "@/lib/auth/session";
+import { TIME_ZONE } from "@/lib/dates";
+import { CLUB, getOpening, getSettings } from "@/lib/site";
 import { SITE_ICONS } from "@/lib/site-icons";
 import "@/app/globals.css";
 
@@ -109,6 +112,9 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[lo
   setRequestLocale(locale);
 
   const [t, settings] = await Promise.all([getTranslations(), getSettings()]);
+  // Before the opening every public page is the countdown; signed-in staff see the site to check it.
+  const opening = getOpening();
+  const gated = opening !== null && !(await getSession());
   const isTa = locale === "ta";
   const base = `/${locale}`;
   const other = locale === "en" ? "ta" : "en";
@@ -184,67 +190,96 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[lo
       <body className="theme-night min-h-screen">
         {/* No NextIntlClientProvider: client components get their strings as props, so the
             message catalogue is never shipped to the browser. */}
-          <SiteNav
+        {gated ? (
+          <OpeningCountdown
+            at={opening.at}
+            now={opening.now}
             home={base}
-            links={links}
-            app={{ href: `${base}#app`, label: t("nav.app") }}
-            language={{ href: `/${other}`, label: t("nav.language"), ariaLabel: t("nav.languageLabel"), lang: other }}
-            labels={{ menu: t("nav.menu"), close: t("nav.close"), brand: CLUB.shortName }}
+            founded={CLUB.founded}
+            language={{ href: `/${other}`, label: t("nav.language"), lang: other }}
+            labels={{
+              eyebrow: t("opening.eyebrow"),
+              line1: t("hero.line1"),
+              line2: t("hero.line2"),
+              lead: t("opening.lead"),
+              when: t("opening.when", {
+                date: new Intl.DateTimeFormat(isTa ? "ta-LK" : "en-GB", { timeZone: TIME_ZONE, weekday: "long", day: "numeric", month: "long" }).format(opening.at),
+                time: new Intl.DateTimeFormat(isTa ? "ta-LK" : "en-GB", { timeZone: TIME_ZONE, hour: "numeric", minute: "2-digit", hour12: true }).format(opening.at),
+              }),
+              days: t("opening.days"),
+              hours: t("opening.hours"),
+              minutes: t("opening.minutes"),
+              seconds: t("opening.seconds"),
+              open: t("opening.open"),
+              entering: t("opening.entering"),
+              staff: t("footer.staff"),
+            }}
           />
-          <main>{children}</main>
+        ) : (
+          <>
+            <SiteNav
+              home={base}
+              links={links}
+              app={{ href: `${base}#app`, label: t("nav.app") }}
+              language={{ href: `/${other}`, label: t("nav.language"), ariaLabel: t("nav.languageLabel"), lang: other }}
+              labels={{ menu: t("nav.menu"), close: t("nav.close"), brand: CLUB.shortName }}
+            />
+            <main>{children}</main>
 
-          <footer className="border-t border-line bg-surface">
-            <div className="container-x grid gap-12 py-16 md:grid-cols-[1.4fr_1fr_1fr]">
-              <div>
-                <div className="flex items-center gap-4">
-                  <Image src="/brand/ksc-crest.png" alt="Kavery Sports Club crest" width={72} height={72} className="h-18 w-18" />
-                  <Image src="/brand/keda-logo.webp" alt="Kavery Education Development Association (KEDA) logo" width={64} height={67} className="h-16 w-auto rounded-md bg-white p-1" />
+            <footer className="border-t border-line bg-surface">
+              <div className="container-x grid gap-12 py-16 md:grid-cols-[1.4fr_1fr_1fr]">
+                <div>
+                  <div className="flex items-center gap-4">
+                    <Image src="/brand/ksc-crest.png" alt="Kavery Sports Club crest" width={72} height={72} className="h-18 w-18" />
+                    <Image src="/brand/keda-logo.webp" alt="Kavery Education Development Association (KEDA) logo" width={64} height={67} className="h-16 w-auto rounded-md bg-white p-1" />
+                  </div>
+                  <p className="mt-6 max-w-sm leading-relaxed text-muted-foreground">{t("footer.tagline")}</p>
                 </div>
-                <p className="mt-6 max-w-sm leading-relaxed text-muted-foreground">{t("footer.tagline")}</p>
+                <div>
+                  <h2 className="eyebrow text-accent">{t("footer.explore")}</h2>
+                  <ul className="mt-5 space-y-1">
+                    {links.map((link) => (
+                      <li key={link.href}>
+                        <a href={link.href} className="inline-flex min-h-11 items-center text-muted-foreground hover:text-fg">
+                          {link.label}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h2 className="eyebrow text-accent">{t("footer.contact")}</h2>
+                  <ul className="mt-5 space-y-1 text-muted-foreground">
+                    <li className="py-2.5">{settings.address}</li>
+                    {settings.contactEmail && (
+                      <li>
+                        <a href={`mailto:${settings.contactEmail}`} className="inline-flex min-h-11 items-center break-all hover:text-fg">
+                          {settings.contactEmail}
+                        </a>
+                      </li>
+                    )}
+                    {settings.contactPhone && (
+                      <li>
+                        <a href={`tel:${settings.contactPhone.replace(/\s/g, "")}`} className="inline-flex min-h-11 items-center hover:text-fg">
+                          {settings.contactPhone}
+                        </a>
+                      </li>
+                    )}
+                  </ul>
+                </div>
               </div>
-              <div>
-                <h2 className="eyebrow text-accent">{t("footer.explore")}</h2>
-                <ul className="mt-5 space-y-1">
-                  {links.map((link) => (
-                    <li key={link.href}>
-                      <a href={link.href} className="inline-flex min-h-11 items-center text-muted-foreground hover:text-fg">
-                        {link.label}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
+              <div className="border-t border-line">
+                <div className="container-x flex flex-wrap items-center justify-between gap-x-8 gap-y-2 py-5 text-sm text-muted-foreground">
+                  <p>{t("footer.rights", { year: new Date().getFullYear() })}</p>
+                  {/* The console is not localised — this must never get a locale prefix. */}
+                  <Link href="/login" className="inline-flex min-h-11 items-center hover:text-fg">
+                    {t("footer.staff")}
+                  </Link>
+                </div>
               </div>
-              <div>
-                <h2 className="eyebrow text-accent">{t("footer.contact")}</h2>
-                <ul className="mt-5 space-y-1 text-muted-foreground">
-                  <li className="py-2.5">{settings.address}</li>
-                  {settings.contactEmail && (
-                    <li>
-                      <a href={`mailto:${settings.contactEmail}`} className="inline-flex min-h-11 items-center break-all hover:text-fg">
-                        {settings.contactEmail}
-                      </a>
-                    </li>
-                  )}
-                  {settings.contactPhone && (
-                    <li>
-                      <a href={`tel:${settings.contactPhone.replace(/\s/g, "")}`} className="inline-flex min-h-11 items-center hover:text-fg">
-                        {settings.contactPhone}
-                      </a>
-                    </li>
-                  )}
-                </ul>
-              </div>
-            </div>
-            <div className="border-t border-line">
-              <div className="container-x flex flex-wrap items-center justify-between gap-x-8 gap-y-2 py-5 text-sm text-muted-foreground">
-                <p>{t("footer.rights", { year: new Date().getFullYear() })}</p>
-                {/* The console is not localised — this must never get a locale prefix. */}
-                <Link href="/login" className="inline-flex min-h-11 items-center hover:text-fg">
-                  {t("footer.staff")}
-                </Link>
-              </div>
-            </div>
-          </footer>
+            </footer>
+          </>
+        )}
         {/* Reads the address bar, so it sits in its own boundary and never holds a page back. */}
         <Suspense fallback={null}>
           <RouteProgress />

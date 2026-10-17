@@ -13,15 +13,14 @@ export const CLUB = {
 } as const;
 
 /**
- * The grand opening, counted down at the foot of the home page's hero. The band shows from now
- * until `OPENING_SHOWN_FOR` after it, saying "open" once the time has passed; after that it is gone.
+ * The grand opening. Until then every public page is the countdown (the site layout) and only
+ * signed-in staff see the site; from this moment it is open to everyone. Sri Lankan time.
  */
 export const OPENING = Date.parse("2026-10-18T10:30:00+05:30");
-export const OPENING_SHOWN_FOR = 12 * 60 * 60 * 1000;
 
-/** The opening and the clock it was checked against, or null once the band is no longer shown. */
+/** The opening and the clock it was checked against while it is still ahead, otherwise null. */
 export function getOpening(now = Date.now()) {
-  return now < OPENING + OPENING_SHOWN_FOR ? { at: OPENING, now } : null;
+  return now < OPENING ? { at: OPENING, now } : null;
 }
 
 export { DEFAULT_SETTINGS, type SiteSettings } from "@/lib/site-settings";

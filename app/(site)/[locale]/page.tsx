@@ -8,14 +8,12 @@ import { ExpandShowcase } from "@/components/site/ExpandShowcase";
 import { Hero } from "@/components/site/Hero";
 import { LiveRefresh } from "@/components/site/LiveRefresh";
 import { MatchCard, StatusChip, formatMatchTime, overs, resultLine } from "@/components/site/MatchCard";
-import { OpeningCountdown } from "@/components/site/OpeningCountdown";
 import { CountUp, Parallax, Reveal } from "@/components/site/motion";
 import { formatDate } from "@/components/site/PageShell";
 import { isLocale } from "@/i18n/config";
 import { getAlbums } from "@/lib/content/public";
 import { getSecret } from "@/lib/db";
-import { TIME_ZONE } from "@/lib/dates";
-import { CLUB, getHomeData, getOpening, getSettings } from "@/lib/site";
+import { CLUB, getHomeData, getSettings } from "@/lib/site";
 
 /** How many tiles a showcase row holds. More than five and the closed ones get too thin to read. */
 const SHOWCASE_SIZE = 5;
@@ -39,20 +37,6 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
     { value: data.stats.students, label: t("stats.students") },
     { value: data.stats.matchesScored, label: t("stats.matches") },
   ].filter((s) => s.value > 0);
-  const opening = getOpening();
-  const intl = locale === "ta" ? "ta-LK" : "en-GB";
-  const openingLabels = opening && {
-    eyebrow: t("opening.eyebrow"),
-    when: t("opening.when", {
-      date: new Intl.DateTimeFormat(intl, { timeZone: TIME_ZONE, weekday: "long", day: "numeric", month: "long" }).format(opening.at),
-      time: new Intl.DateTimeFormat(intl, { timeZone: TIME_ZONE, hour: "numeric", minute: "2-digit", hour12: true }).format(opening.at),
-    }),
-    days: t("opening.days"),
-    hours: t("opening.hours"),
-    minutes: t("opening.minutes"),
-    seconds: t("opening.seconds"),
-    open: t("opening.open"),
-  };
 
   return (
     <>
@@ -76,7 +60,6 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           </>
         }
       >
-        {opening && openingLabels && <OpeningCountdown at={opening.at} now={opening.now} labels={openingLabels} />}
         {/* Ticker: the one live, next or latest match, straight from the scoring database. */}
         <a href={featured ? `${base}/live/match/${featured.id}` : `${base}#matches`} className="group block border-t border-line bg-surface/85 backdrop-blur-md transition-colors hover:bg-surface">
           <div className="container-x flex min-h-20 flex-wrap items-center gap-x-8 gap-y-2 py-4">

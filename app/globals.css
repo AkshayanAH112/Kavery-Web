@@ -490,24 +490,7 @@ body {
   animation: hero-glow 9s ease-in-out infinite;
 }
 
-/* The opening countdown (components/site/OpeningCountdown.tsx): a light sweeps across the band. */
-.countdown-sheen::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 -30%;
-  width: 30%;
-  background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.16), transparent);
-  animation: countdown-sheen 5s ease-in-out 1.5s infinite;
-}
-@keyframes countdown-sheen {
-  0% {
-    translate: 0 0;
-  }
-  45%,
-  100% {
-    translate: 450% 0;
-  }
-}
+/* The opening countdown (components/site/OpeningCountdown.tsx): the colons pulse with the seconds. */
 @keyframes countdown-colon {
   50% {
     opacity: 0.25;
@@ -822,8 +805,7 @@ body {
   .hero-crest,
   .hero-float,
   .hero-glow,
-  .countdown-colon,
-  .countdown-sheen::before {
+  .countdown-colon {
     animation: none;
   }
   /* A bar that must still read as "busy" without sliding: full width, gently pulsing. */

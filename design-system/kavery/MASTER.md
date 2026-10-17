@@ -146,7 +146,7 @@ crest keeps floating. Nothing else autoplays beyond the marquee and the countdow
 | Layered parallax | Hero: founding year, two sashes, crest, headline each travel at a different speed | `components/site/Hero.tsx` |
 | Hero entrance | Sashes slide in along their diagonal, the year drifts in, the crest springs in, the copy rises in turn | CSS only (`.hero-*` in `globals.css`), plays once |
 | Float | Hero crest bobs; the floodlight breathes | CSS only, 6s / 9s, infinite |
-| Countdown | Band at the foot of the hero until the opening (`OPENING` in `lib/site.ts`) | `<OpeningCountdown>` — digits roll up as they change |
+| Countdown | Stands in for the whole public site until the opening (`OPENING` in `lib/site.ts`); signed-in staff see the site | `<OpeningCountdown>` — digits roll up as they change; at zero "we are open", then the home page loads |
 | Parallax drift | Crest watermark, KEDA logo tile, the "KSC" ghost word | `<Parallax distance>` |
 | Reveal | Section headings, cards | `<Reveal>` — 28px rise, 700ms, `--ease-out` |
 | Count-up | Stats | `<CountUp>` — the server renders the final number |

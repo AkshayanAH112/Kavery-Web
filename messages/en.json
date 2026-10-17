@@ -29,12 +29,14 @@
   },
   "opening": {
     "eyebrow": "Grand opening",
+    "lead": "Our website opens in",
     "when": "{date} · {time}",
     "days": "Days",
     "hours": "Hours",
     "minutes": "Minutes",
     "seconds": "Seconds",
-    "open": "We are open!"
+    "open": "We are open!",
+    "entering": "Taking you in…"
   },
   "marquee": [
     "Cricket",
