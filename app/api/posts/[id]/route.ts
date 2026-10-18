@@ -59,8 +59,9 @@ export async function PATCH(request: Request, { params }: RouteContext<"/api/pos
     update.coverKey = cover?.key ?? null;
   }
   if (data.images !== undefined) {
-    const images = parseImages(data.images);
-    if (!images) return fail("One of the images is not an upload from this site");
+    const parsed = parseImages(data.images);
+    if ("error" in parsed) return fail(parsed.error);
+    const { images } = parsed;
     const kept = new Set(images.map((img) => img.key));
     orphaned.push(...existing.images.filter((img) => img.key && !kept.has(img.key)).map((img) => img.key));
     update.images = images;

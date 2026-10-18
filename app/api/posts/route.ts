@@ -31,8 +31,9 @@ export async function POST(request: Request) {
   const content = sanitizePostHtml(typeof data?.content === "string" ? data.content.slice(0, 200_000) : "");
   if (!htmlToText(content)) return fail("Content is required");
 
-  const images = data?.images === undefined ? [] : parseImages(data.images);
-  if (!images) return fail("One of the images is not an upload from this site");
+  const parsed = data?.images === undefined ? { images: [] } : parseImages(data.images);
+  if ("error" in parsed) return fail(parsed.error);
+  const { images } = parsed;
   const cover = data?.coverImageUrl ? ownMedia(data.coverImageUrl, data.coverImagePublicId, "news") : null;
   if (data?.coverImageUrl && !cover) return fail("The cover image is not an upload from this site");
 

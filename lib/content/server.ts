@@ -6,7 +6,7 @@
 import { and, eq, ne } from "drizzle-orm";
 import { getDb, getEnv, schema, type Db } from "@/lib/db";
 import type { ContentImage } from "@/db/schema";
-import { MEDIA_FOLDERS } from "@/lib/media";
+import { MAX_POST_IMAGES, MEDIA_FOLDERS } from "@/lib/media";
 import { slugify } from "@/lib/slug";
 import { pushInBackground } from "@/lib/push";
 
@@ -91,15 +91,17 @@ export async function uniquePostSlug(db: Db, title: string, excludeId?: string) 
   return candidate;
 }
 
-export function parseImages(value: unknown): ContentImage[] | null {
-  if (!Array.isArray(value) || value.length > 40) return null;
+/** A post's gallery as the client sent it, or why it is refused. */
+export function parseImages(value: unknown): { images: ContentImage[] } | { error: string } {
+  if (!Array.isArray(value)) return { error: "The gallery images were not sent as a list" };
+  if (value.length > MAX_POST_IMAGES) return { error: `A post can have at most ${MAX_POST_IMAGES} gallery images. Put the rest in a gallery album.` };
   const images: ContentImage[] = [];
   for (const item of value) {
     const media = ownMedia(item?.url, item?.publicId, "news");
-    if (!media) return null;
+    if (!media) return { error: "One of the images is not an upload from this site" };
     images.push({ ...media, caption: text(item?.caption, 200) || undefined });
   }
-  return images;
+  return { images };
 }
 
 /* ----------------------------------------------------------------- gallery */

@@ -17,4 +17,7 @@ export const MEDIA_FOLDERS: Record<string, { permission: Permission; public: boo
 export const IMAGE_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 export const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
+/** Gallery photos on one news post. The public page lazy-loads them; an album has no cap. */
+export const MAX_POST_IMAGES = 300;
+
 export const mediaUrl = (key: string) => `/media/${key}`;

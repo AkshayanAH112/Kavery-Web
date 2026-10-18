@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/console/confirm-dialog";
 import { RichTextEditor } from "@/components/content/rich-text-editor";
-import { uploadImage } from "@/lib/upload-client";
+import { MAX_POST_IMAGES } from "@/lib/media";
+import { uploadImage, uploadMany } from "@/lib/upload-client";
 
 export type PostImage = { url: string; publicId?: string; caption?: string };
 
@@ -89,16 +90,32 @@ export function PostEditor({ initial }: { initial: PostDraft }) {
   };
 
   const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length === 0) return;
-    setUploading("gallery");
+    const picked = Array.from(e.target.files ?? []);
+    if (picked.length === 0) return;
+    // Only as many as still fit, so nothing is uploaded that the post would refuse.
+    const room = Math.max(0, MAX_POST_IMAGES - post.images.length);
+    const files = picked.slice(0, room);
     setError(null);
+    if (files.length === 0) {
+      setError(`A post can have at most ${MAX_POST_IMAGES} gallery images. Put the rest in a gallery album.`);
+      if (galleryInputRef.current) galleryInputRef.current.value = "";
+      return;
+    }
+    setUploading("gallery");
     try {
-      const uploaded = await Promise.all(files.map(uploadFile));
-      setPost((p) => ({
-        ...p,
-        images: [...p.images, ...uploaded.map((u) => ({ ...u, caption: "" }))],
-      }));
+      const settled = await uploadMany(files, uploadFile);
+      const uploaded = settled.filter((r) => r.status === "fulfilled").map((r) => r.value);
+      if (uploaded.length > 0) {
+        setPost((p) => ({
+          ...p,
+          images: [...p.images, ...uploaded.map((u) => ({ ...u, caption: "" }))],
+        }));
+      }
+      const problems: string[] = [];
+      const failed = settled.length - uploaded.length;
+      if (failed > 0) problems.push(`${failed} of ${settled.length} photos failed to upload. Add the missing ones again.`);
+      if (picked.length > files.length) problems.push(`${picked.length - files.length} photos were left out: a post can have at most ${MAX_POST_IMAGES} gallery images. Put the rest in a gallery album.`);
+      if (problems.length) setError(problems.join(" "));
     } catch (err: any) {
       setError(err.message);
     } finally {

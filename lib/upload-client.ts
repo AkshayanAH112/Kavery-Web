@@ -35,6 +35,28 @@ export async function shrinkImage(file: File): Promise<File> {
   return file;
 }
 
+/**
+ * Runs `upload` over many files, a few at a time. Firing a hundred phone photos at once
+ * stalls a mobile connection and times requests out. One failure does not lose the
+ * others: each file's outcome comes back in order.
+ */
+export async function uploadMany<T>(files: File[], upload: (file: File) => Promise<T>, concurrency = 4): Promise<PromiseSettledResult<T>[]> {
+  const results: PromiseSettledResult<T>[] = new Array(files.length);
+  let cursor = 0;
+  const runners = Array.from({ length: Math.min(concurrency, files.length) }, async () => {
+    while (cursor < files.length) {
+      const current = cursor++;
+      try {
+        results[current] = { status: "fulfilled", value: await upload(files[current]) };
+      } catch (reason) {
+        results[current] = { status: "rejected", reason };
+      }
+    }
+  });
+  await Promise.all(runners);
+  return results;
+}
+
 /** Shrinks, then uploads to R2. Throws with the server's own message on failure. */
 export async function uploadImage(file: File, folder: "news" | "gallery" | "cricket"): Promise<{ url: string; publicId: string }> {
   const body = new FormData();
