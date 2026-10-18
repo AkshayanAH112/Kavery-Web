@@ -27,12 +27,14 @@ export type PushOverview = Awaited<ReturnType<typeof getPushOverview>>;
 export type PushContent = { title: string; body?: string; url?: string; tag?: string };
 
 /**
- * Each delivery is a subrequest to the browser vendor's push service, and a
- * Worker request has a subrequest cap (50 on the free plan), so one call sends
- * to at most LIMIT subscriptions and reports how many were left over. Past a
- * few dozen subscribers, move the fan-out to a Cloudflare Queue.
+ * Each delivery is a subrequest to the browser vendor's push service. The Worker
+ * is on the Paid plan, whose subrequest cap is far above this, but a Worker keeps
+ * only six connections open at once and a background send (`waitUntil`) must
+ * finish within 30 seconds — so one call sends to at most LIMIT subscriptions
+ * and reports how many were left over. Past a few hundred subscribers, move the
+ * fan-out to a Cloudflare Queue.
  */
-const LIMIT = 40;
+const LIMIT = 300;
 
 export async function sendPushToTopic(topic: PushTopic, content: PushContent) {
   if (!isPushConfigured()) return { delivered: 0, failed: 0, skipped: 0, configured: false };
