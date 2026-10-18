@@ -499,6 +499,25 @@ body {
 .countdown-colon {
   animation: countdown-colon 1s ease-in-out infinite;
 }
+/* The chief guest's button: a glow keeps rippling out from behind it, and the line that waits for
+   the press breathes. */
+@keyframes opening-ring {
+  from {
+    opacity: 0.6;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    scale: 1.35 1.9;
+  }
+}
+.opening-ring {
+  transform: skewX(calc(var(--cut) * -1));
+  animation: opening-ring 1.8s var(--ease-out) infinite;
+}
+.opening-waiting {
+  animation: countdown-colon 2.4s ease-in-out infinite;
+}
 
 /* ------------------------------------------------------------------ showcase
    The hover-expand row on the home page (components/site/ExpandShowcase.tsx).
@@ -805,7 +824,9 @@ body {
   .hero-crest,
   .hero-float,
   .hero-glow,
-  .countdown-colon {
+  .countdown-colon,
+  .opening-ring,
+  .opening-waiting {
     animation: none;
   }
   /* A bar that must still read as "busy" without sliding: full width, gently pulsing. */

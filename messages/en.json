@@ -36,7 +36,12 @@
     "minutes": "Minutes",
     "seconds": "Seconds",
     "open": "We are open!",
-    "entering": "Taking you in…"
+    "entering": "Taking you in…",
+    "press": "Open the website",
+    "pressHint": "For the chief guest",
+    "opening": "Opening…",
+    "failed": "That didn't go through. Press again.",
+    "waiting": "Waiting for the chief guest to open the website…"
   },
   "marquee": [
     "Cricket",

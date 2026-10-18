@@ -10,6 +10,7 @@ import { RouteProgress } from "@/components/RouteProgress";
 import { OpeningCountdown } from "@/components/site/OpeningCountdown";
 import { SiteNav } from "@/components/site/SiteNav";
 import { isLocale } from "@/i18n/config";
+import { can } from "@/lib/auth/roles";
 import { getSession } from "@/lib/auth/session";
 import { TIME_ZONE } from "@/lib/dates";
 import { CLUB, getOpening, getSettings } from "@/lib/site";
@@ -112,9 +113,11 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[lo
   setRequestLocale(locale);
 
   const [t, settings] = await Promise.all([getTranslations(), getSettings()]);
-  // Before the opening every public page is the countdown; signed-in staff see the site to check it.
-  const opening = getOpening();
-  const gated = opening !== null && !(await getSession());
+  // Until the chief guest opens it, every public page is the opening screen — for staff too, since
+  // the ceremony screen is a signed-in administrator's, and it carries the button.
+  const [opening, session] = await Promise.all([getOpening(), getSession()]);
+  const gated = opening !== null;
+  const canOpen = can(session?.role, "site.manage");
   const isTa = locale === "ta";
   const base = `/${locale}`;
   const other = locale === "en" ? "ta" : "en";
@@ -195,6 +198,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[lo
             at={opening.at}
             now={opening.now}
             home={base}
+            canOpen={canOpen}
             founded={CLUB.founded}
             language={{ href: `/${other}`, label: t("nav.language"), lang: other }}
             labels={{
@@ -212,6 +216,11 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[lo
               seconds: t("opening.seconds"),
               open: t("opening.open"),
               entering: t("opening.entering"),
+              press: t("opening.press"),
+              pressHint: t("opening.pressHint"),
+              opening: t("opening.opening"),
+              failed: t("opening.failed"),
+              waiting: t("opening.waiting"),
               staff: t("footer.staff"),
             }}
           />

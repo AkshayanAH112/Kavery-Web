@@ -19,6 +19,13 @@ type Labels = {
   seconds: string;
   open: string;
   entering: string;
+  /** The chief guest's button, and what it says while the press is sent or if it fails. */
+  press: string;
+  pressHint: string;
+  opening: string;
+  failed: string;
+  /** What everyone else sees between zero and the press. */
+  waiting: string;
   staff: string;
 };
 
@@ -30,6 +37,8 @@ type Props = {
   now: number;
   /** Where to go once it opens. */
   home: string;
+  /** A signed-in administrator's screen — the ceremony screen — which carries the button. */
+  canOpen: boolean;
   founded: number;
   language: { href: string; label: string; lang: string };
   labels: Labels;
@@ -40,7 +49,10 @@ const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 /** How long "we are open" holds the screen before the site loads. */
-const CELEBRATE_MS = 3200;
+const CELEBRATE_MS = 4000;
+/** How often a waiting screen asks whether the chief guest has opened the site. */
+const POLL_MS = 3000;
+const API = "/api/opening";
 
 function split(ms: number) {
   const left = Math.max(0, ms);
@@ -53,13 +65,17 @@ function split(ms: number) {
 }
 
 /**
- * Stands in for the whole public site until the opening (the site layout decides when). The
- * flip clock ticks down; at zero it gives way to "we are open", and then the home page loads —
- * by now the server serves the real site to everyone.
+ * Stands in for the whole public site until the chief guest opens it (the site layout decides).
+ * The flip clock ticks down; at zero the ceremony screen shows "Open the website" and every other
+ * screen waits. The press opens the site on the server, every screen shows "we are open", and
+ * then the home page loads — by now the server serves the real site to everyone.
  */
-export function OpeningCountdown({ at, now, home, founded, language, labels }: Props) {
+export function OpeningCountdown({ at, now, home, canOpen, founded, language, labels }: Props) {
   const reduce = usePrefersReducedMotion();
   const [clock, setClock] = useState(now);
+  const [open, setOpen] = useState(false);
+  const [pressing, setPressing] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     // `now` was read on the server just before the page was sent, so compare it with when the
@@ -71,18 +87,55 @@ export function OpeningCountdown({ at, now, home, founded, language, labels }: P
     const tick = () => {
       const t = Date.now() + skew;
       setClock(t);
-      if (t >= at) {
-        timer = setTimeout(() => window.location.replace(home), CELEBRATE_MS);
-        return;
-      }
+      if (t >= at) return;
       // Wake just after the next whole second of the countdown, not on a drifting interval.
       timer = setTimeout(tick, ((at - t) % SECOND) + 20);
     };
     tick();
     return () => clearTimeout(timer);
-  }, [at, now, home]);
+  }, [at, now]);
 
-  const open = clock >= at;
+  const due = clock >= at;
+
+  // From zero until the press, every screen (the ceremony screen too, in case it is opened from
+  // another) asks the server whether the site is open yet.
+  useEffect(() => {
+    if (!due || open) return;
+    let stopped = false;
+    const check = async () => {
+      try {
+        const res = await fetch(API, { cache: "no-store" });
+        const body = (await res.json()) as { open?: boolean };
+        if (!stopped && body.open) setOpen(true);
+      } catch {
+        // offline for a moment: the next check will catch up
+      }
+    };
+    const id = setInterval(check, POLL_MS);
+    return () => {
+      stopped = true;
+      clearInterval(id);
+    };
+  }, [due, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = setTimeout(() => window.location.replace(home), CELEBRATE_MS);
+    return () => clearTimeout(timer);
+  }, [open, home]);
+
+  async function press() {
+    setPressing(true);
+    setFailed(false);
+    try {
+      const res = await fetch(API, { method: "POST" });
+      if (!res.ok) throw new Error(String(res.status));
+      setOpen(true);
+    } catch {
+      setFailed(true);
+      setPressing(false);
+    }
+  }
   const parts = split(at - clock);
   const units = [
     ...(parts.days > 0 ? [{ key: "days", value: parts.days, label: labels.days }] : []),
@@ -156,6 +209,41 @@ export function OpeningCountdown({ at, now, home, founded, language, labels }: P
               >
                 <p className="display text-[min(12vw,6rem)] leading-none text-accent [:lang(ta)_&]:text-[min(10vw,5rem)]">{labels.open}</p>
                 <p className="mt-4 text-lg text-muted-foreground">{labels.entering}</p>
+              </motion.div>
+            ) : due && canOpen ? (
+              <motion.div
+                key="press"
+                initial={reduce ? false : { scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={reduce ? undefined : { scale: 1.15, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 260, damping: 18 }}
+                className="flex flex-col items-center"
+              >
+                <p className="eyebrow text-muted-foreground">{labels.pressHint}</p>
+                <div className="relative mt-5">
+                  {!reduce && !pressing && <span aria-hidden className="opening-ring absolute inset-0 rounded-sm bg-accent" />}
+                  <button
+                    type="button"
+                    onClick={press}
+                    disabled={pressing}
+                    autoFocus
+                    className="btn btn-accent relative px-10! text-xl! shadow-[0_20px_60px_-10px_rgb(250_204_21/0.55)] sm:min-h-20! sm:px-14! sm:text-2xl! [:lang(ta)_&]:text-lg! sm:[:lang(ta)_&]:text-xl!"
+                  >
+                    <span>{pressing ? labels.opening : labels.press}</span>
+                  </button>
+                </div>
+                <p role="alert" className="mt-4 min-h-6 text-destructive">{failed ? labels.failed : ""}</p>
+              </motion.div>
+            ) : due ? (
+              <motion.div
+                key="waiting"
+                initial={reduce ? false : { opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduce ? undefined : { scale: 0.8, opacity: 0 }}
+                transition={{ duration: 0.5 }}
+                role="status"
+              >
+                <p className="opening-waiting display max-w-xl text-2xl leading-snug text-accent sm:text-4xl [:lang(ta)_&]:text-xl sm:[:lang(ta)_&]:text-3xl">{labels.waiting}</p>
               </motion.div>
             ) : (
               <motion.div key="clock" exit={reduce ? undefined : { scale: 0.8, opacity: 0 }} transition={{ duration: 0.35 }}>

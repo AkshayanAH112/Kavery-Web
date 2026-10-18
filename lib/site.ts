@@ -13,14 +13,32 @@ export const CLUB = {
 } as const;
 
 /**
- * The grand opening. Until then every public page is the countdown (the site layout) and only
- * signed-in staff see the site; from this moment it is open to everyone. Sri Lankan time.
+ * The grand opening. Until the chief guest presses "Open the website" every public page is the
+ * opening screen (the site layout): a countdown to this moment, then the button. The press is
+ * stored as the `openedAt` site_settings row, which opens the site for everyone. Sri Lankan time.
  */
 export const OPENING = Date.parse("2026-10-18T10:30:00+05:30");
+const OPENED_KEY = "openedAt";
 
-/** The opening and the clock it was checked against while it is still ahead, otherwise null. */
-export function getOpening(now = Date.now()) {
-  return now < OPENING ? { at: OPENING, now } : null;
+/** Whether the chief guest has opened the site. */
+export async function isOpened() {
+  const rows = await getDb().select().from(schema.siteSettings).where(eq(schema.siteSettings.key, OPENED_KEY));
+  return rows.length > 0;
+}
+
+/** The opening and the clock it was checked against while the site is still closed, otherwise null. */
+export async function getOpening(now = Date.now()) {
+  return (await isOpened()) ? null : { at: OPENING, now };
+}
+
+/** Opens the site for everyone. Pressing again keeps the first moment. */
+export async function openSite() {
+  await getDb().insert(schema.siteSettings).values({ key: OPENED_KEY, value: new Date().toISOString() }).onConflictDoNothing();
+}
+
+/** Closes it again, back to the opening screen. */
+export async function closeSite() {
+  await getDb().delete(schema.siteSettings).where(eq(schema.siteSettings.key, OPENED_KEY));
 }
 
 export { DEFAULT_SETTINGS, type SiteSettings } from "@/lib/site-settings";
