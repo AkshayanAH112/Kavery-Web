@@ -128,6 +128,7 @@
     "empty": "Photo albums will appear here once they are uploaded.",
     "all": "All albums",
     "photos": "{count, plural, one {# photo} other {# photos}}",
+    "fromNews": "From the news",
     "openPhoto": "Open photo",
     "close": "Close",
     "previous": "Previous photo",

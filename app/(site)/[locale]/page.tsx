@@ -11,7 +11,7 @@ import { MatchCard, StatusChip, formatMatchTime, overs, resultLine } from "@/com
 import { CountUp, Parallax, Reveal } from "@/components/site/motion";
 import { formatDate } from "@/components/site/PageShell";
 import { isLocale } from "@/i18n/config";
-import { getAlbums } from "@/lib/content/public";
+import { getGallery } from "@/lib/content/public";
 import { getSecret } from "@/lib/db";
 import { CLUB, getHomeData, getSettings } from "@/lib/site";
 
@@ -23,7 +23,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   if (!isLocale(locale)) notFound();
   setRequestLocale(locale);
 
-  const [t, data, settings, allAlbums] = await Promise.all([getTranslations(), getHomeData(), getSettings(), getAlbums()]);
+  const [t, data, settings, allAlbums] = await Promise.all([getTranslations(), getHomeData(), getSettings(), getGallery()]);
   const albums = allAlbums.slice(0, SHOWCASE_SIZE);
   const base = `/${locale}`;
   const featured = data.featured;
@@ -319,8 +319,8 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             <ExpandShowcase
               word={t("gallery.eyebrow")}
               items={albums.map((album) => ({
-                key: album.id,
-                href: `${base}/gallery/${album.id}`,
+                key: `${album.kind}-${album.id}`,
+                href: album.kind === "post" ? `${base}/news/${album.slug}#photos` : `${base}/gallery/${album.id}`,
                 image: album.coverUrl,
                 label: album.org === "keda" ? t("news.keda") : t("news.ksc"),
                 title: album.name,

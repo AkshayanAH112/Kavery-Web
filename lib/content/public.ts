@@ -1,4 +1,4 @@
-import { and, count, desc, eq, isNotNull } from "drizzle-orm";
+import { and, count, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import type { Org } from "@/db/schema";
 import { folderImages, getFolder } from "./server";
@@ -25,6 +25,25 @@ export async function getAlbums(org?: Org) {
   return folders.filter((f) => (countBy.get(f.id) ?? 0) > 0).map((f) => ({ ...f, imageCount: countBy.get(f.id) ?? 0 }));
 }
 
+/** A tile on the gallery page: an album, or a published news post's own photos. */
+export type GalleryEntry = { kind: "album" | "post"; id: string; org: Org; slug: string | null; name: string; coverUrl: string; imageCount: number; date: number };
+
+/** Albums and news posts with gallery photos, newest first. A post's tile opens the post at its photos. */
+export async function getGallery(org?: Org): Promise<GalleryEntry[]> {
+  const [albums, posts] = await Promise.all([
+    getAlbums(org),
+    getDb()
+      .select({ id: P.id, org: P.org, slug: P.slug, title: P.title, coverUrl: P.coverUrl, images: P.images, publishedAt: P.publishedAt, createdAt: P.createdAt })
+      .from(P)
+      .where(and(eq(P.status, "published"), sql`json_array_length(${P.images}) > 0`, org ? eq(P.org, org) : undefined)),
+  ]);
+  const entries: GalleryEntry[] = [
+    ...albums.map((a) => ({ kind: "album" as const, id: a.id, org: a.org, slug: null, name: a.name, coverUrl: a.coverUrl!, imageCount: a.imageCount, date: a.createdAt.getTime() })),
+    ...posts.map((p) => ({ kind: "post" as const, id: p.id, org: p.org, slug: p.slug, name: p.title, coverUrl: p.coverUrl ?? p.images[0].url, imageCount: p.images.length, date: (p.publishedAt ?? p.createdAt).getTime() })),
+  ];
+  return entries.sort((a, b) => b.date - a.date);
+}
+
 export async function getAlbum(id: string) {
   const folder = await getFolder(id);
   if (!folder) return null;
@@ -35,6 +54,10 @@ export async function getAlbum(id: string) {
 /** Whether there is anything to link to — the About page only offers "KEDA news" and "KEDA photos" once there is. */
 export async function getContentPresence() {
   const db = getDb();
-  const [posts, photos] = await Promise.all([db.$count(P, eq(P.status, "published")), db.$count(G)]);
-  return { news: posts > 0, gallery: photos > 0 };
+  const [posts, photos, postsWithPhotos] = await Promise.all([
+    db.$count(P, eq(P.status, "published")),
+    db.$count(G),
+    db.$count(P, and(eq(P.status, "published"), sql`json_array_length(${P.images}) > 0`)),
+  ]);
+  return { news: posts > 0, gallery: photos > 0 || postsWithPhotos > 0 };
 }

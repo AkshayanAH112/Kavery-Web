@@ -98,7 +98,7 @@ export default async function PostPage({ params }: PageProps<"/[locale]/news/[sl
         dangerouslySetInnerHTML={{ __html: post.content }}
       />
       {post.images.length > 0 && (
-        <section className="mt-14">
+        <section id="photos" className="mt-14 scroll-mt-[calc(var(--nav-h)+1.5rem)]">
           <h2 className="eyebrow mb-5 text-accent">{t("gallery.eyebrow")}</h2>
           <Lightbox
             photos={post.images.map((img, i) => ({ id: img.key ?? String(i), url: img.url, caption: img.caption }))}
