@@ -228,6 +228,10 @@ suites, against the production Worker in the local Workers runtime: all three pa
   without a photo shows the child's initial, and a long name wraps to two lines.
 - About page (`/[locale]/about`) for the club and KEDA, fed by a "Site details" screen in the
   console: contact lines, the story in English and Tamil, class times, office bearers.
+  Since 2026-10-19 the club's and KEDA's committees show as photo cards (each member has an optional
+  photo and a role in English and Tamil, ordered by hand) and sponsors have their own section with
+  logos and links. Pictures go to the public `site` folder in R2 (upload needs `site.manage`); one
+  that is replaced or removed is deleted from R2 when Site details are saved.
 - News and gallery can be viewed as All / Club / KEDA, and a post or album is marked as the club's
   or KEDA's when it is created.
 - Publishing a post or an exam sends a push notification to people who asked for that topic.

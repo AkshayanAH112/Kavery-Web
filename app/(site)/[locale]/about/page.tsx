@@ -5,7 +5,7 @@ import { ContactPeople } from "@/components/site/ContactPeople";
 import { PageShell } from "@/components/site/PageShell";
 import { getContentPresence } from "@/lib/content/public";
 import { CLUB, getAboutStats, getSettings } from "@/lib/site";
-import { paragraphs, type Bilingual, type Officer } from "@/lib/site-settings";
+import { paragraphs, siteImageUrl, type Bilingual, type Officer, type Sponsor } from "@/lib/site-settings";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/about">): Promise<Metadata> {
   const { locale } = await params;
@@ -36,20 +36,73 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/about">)
   };
 }
 
-function Officers({ title, people }: { title: string; people: Officer[] }) {
+/** A committee, as photo cards. Someone without a photo gets their initial instead. */
+function Committee({ title, people, locale, headingClass = "text-accent" }: { title: string; people: Officer[]; locale: string; headingClass?: string }) {
   if (people.length === 0) return null;
   return (
     <div className="mt-10">
-      <h3 className="eyebrow text-accent">{title}</h3>
-      <ul className="mt-4 grid gap-x-10 sm:grid-cols-2">
-        {people.map((p, i) => (
-          <li key={i} className="flex items-baseline justify-between gap-4 border-b border-line py-3">
-            <span className="text-muted-foreground">{p.role}</span>
-            <span className="text-right font-semibold text-fg">{p.name}</span>
-          </li>
-        ))}
+      <h3 className={`eyebrow ${headingClass}`}>{title}</h3>
+      <ul className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
+        {people.map((p, i) => {
+          const role = locale === "ta" ? p.role.ta || p.role.en : p.role.en || p.role.ta;
+          return (
+            <li key={i} className="min-w-0">
+              <div className="aspect-[4/5] overflow-hidden rounded-[var(--card-radius)] bg-surface-2">
+                {p.photoKey ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- already resized before upload
+                  <img src={siteImageUrl(p.photoKey)} alt={p.name} loading="lazy" className="size-full object-cover" />
+                ) : (
+                  <span aria-hidden className="display flex size-full items-center justify-center text-6xl text-muted-foreground">
+                    {p.name.trim().charAt(0)}
+                  </span>
+                )}
+              </div>
+              <p className="mt-3 font-semibold leading-snug text-fg">{p.name}</p>
+              <p className="text-sm text-muted-foreground">{role}</p>
+            </li>
+          );
+        })}
       </ul>
     </div>
+  );
+}
+
+/** Sponsors' logos on white tiles (logos are drawn for a light ground), each a link when the sponsor gave one. */
+function Sponsors({ title, lead, sponsors }: { title: string; lead: string; sponsors: Sponsor[] }) {
+  if (sponsors.length === 0) return null;
+  return (
+    <section id="sponsors" className="mt-20 scroll-mt-[calc(var(--nav-h)+1rem)]">
+      <h2 className="display h-section">{title}</h2>
+      <p className="mt-4 max-w-2xl text-lg leading-relaxed text-muted-foreground">{lead}</p>
+      <ul className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        {sponsors.map((x, i) => {
+          const tile = (
+            <>
+              <span className="flex aspect-[3/2] items-center justify-center rounded-[var(--card-radius)] bg-white p-4">
+                {x.logoKey ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- already resized before upload
+                  <img src={siteImageUrl(x.logoKey)} alt={x.name} loading="lazy" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-center text-lg font-bold text-ink">{x.name}</span>
+                )}
+              </span>
+              <span className="mt-3 block font-semibold text-fg">{x.name}</span>
+            </>
+          );
+          return (
+            <li key={i} className="min-w-0">
+              {x.url ? (
+                <a href={x.url} target="_blank" rel="noopener noreferrer" className="group block transition-opacity hover:opacity-85">
+                  {tile}
+                </a>
+              ) : (
+                tile
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
@@ -63,7 +116,7 @@ function Fact({ label, value }: { label: string; value: string | number }) {
 }
 
 /**
- * Who the club and KEDA are. The words, the office bearers and the contact lines
+ * Who the club and KEDA are. The words, the committees, the sponsors and the contact lines
  * are whatever an administrator entered under Site details; where they have
  * entered nothing, the page falls back to the short standard wording or leaves
  * the line out. Nothing here is made up by the page.
@@ -85,7 +138,7 @@ export default async function AboutPage({ params }: PageProps<"/[locale]/about">
       <section id="club" className="grid gap-12 lg:grid-cols-[1.3fr_0.7fr] lg:gap-16">
         <div className="min-w-0">
           <div className="max-w-2xl space-y-5 text-lg leading-relaxed text-muted-foreground">{(clubText.length ? clubText : [t("club.p1"), t("club.p2")]).map((p, i) => <p key={i}>{p}</p>)}</div>
-          <Officers title={t("about.officers")} people={settings.officers.filter((o) => o.org === "ksc")} />
+          <Committee title={t("about.officers")} people={settings.officers.filter((o) => o.org === "ksc")} locale={locale} />
           <a href={`${base}/membership`} className="btn btn-brand mt-10">
             <span>{t("club.join")}</span>
           </a>
@@ -123,7 +176,7 @@ export default async function AboutPage({ params }: PageProps<"/[locale]/about">
                 <p className="mt-2 whitespace-pre-line text-lg font-semibold text-fg">{classInfo}</p>
               </div>
             )}
-            <Officers title={t("about.officers")} people={settings.officers.filter((o) => o.org === "keda")} />
+            <Committee title={t("about.officers")} people={settings.officers.filter((o) => o.org === "keda")} locale={locale} headingClass="text-brand-text" />
             <div className="mt-10 flex flex-wrap gap-x-5 gap-y-4 pl-1">
               <a href={`${base}/parents`} className="btn btn-brand">
                 <span>{t("keda.results")}</span>
@@ -142,6 +195,8 @@ export default async function AboutPage({ params }: PageProps<"/[locale]/about">
           </div>
         </div>
       </section>
+
+      <Sponsors title={t("about.sponsors")} lead={t("about.sponsorsLead")} sponsors={settings.sponsors} />
 
       <section id="contact" className="mt-20 scroll-mt-[calc(var(--nav-h)+1rem)]">
         <h2 className="display h-section">{t("footer.contact")}</h2>

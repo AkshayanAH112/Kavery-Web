@@ -490,7 +490,7 @@
   "about": {
     "eyebrow": "About",
     "founded": "Founded",
-    "officers": "Office bearers",
+    "officers": "Committee",
     "classes": "Classes",
     "grades": "Grades taught",
     "address": "Address",
@@ -501,6 +501,8 @@
     "contactKeda": "KEDA – Kavery Education Development Association",
     "whatsapp": "WhatsApp",
     "kedaNews": "KEDA news",
-    "kedaGallery": "KEDA photos"
+    "kedaGallery": "KEDA photos",
+    "sponsors": "Our sponsors",
+    "sponsorsLead": "Thank you to the businesses and people who support the club and KEDA."
   }
 }
