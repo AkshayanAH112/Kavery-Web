@@ -134,6 +134,12 @@
     "previous": "Previous photo",
     "next": "Next photo"
   },
+  "share": {
+    "button": "Share",
+    "menu": "Share this page",
+    "copy": "Copy link",
+    "copied": "Link copied"
+  },
   "app": {
     "eyebrow": "On your phone",
     "title": "Take Kavery with you",

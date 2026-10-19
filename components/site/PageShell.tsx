@@ -4,8 +4,8 @@ import { ChevronRight } from "lucide-react";
 
 type Crumb = { label: string; href?: string };
 
-/** The frame for the public site's inner pages: breadcrumb, eyebrow, title, lead. */
-export function PageShell({ crumbs, eyebrow, title, lead, children, narrow }: { crumbs: Crumb[]; eyebrow?: string; title: string; lead?: string; children: ReactNode; narrow?: boolean }) {
+/** The frame for the public site's inner pages: breadcrumb, eyebrow, title, lead, and actions (a share button) under them. */
+export function PageShell({ crumbs, eyebrow, title, lead, actions, children, narrow }: { crumbs: Crumb[]; eyebrow?: string; title: string; lead?: string; actions?: ReactNode; children: ReactNode; narrow?: boolean }) {
   return (
     <div className="min-h-screen pb-24 pt-[calc(var(--nav-h)+2rem)]">
       <div className={`container-x ${narrow ? "max-w-[52rem]" : ""}`}>
@@ -29,11 +29,17 @@ export function PageShell({ crumbs, eyebrow, title, lead, children, narrow }: { 
           {eyebrow && <p className="eyebrow text-brand-text">{eyebrow}</p>}
           <h1 className="display h-section mt-4">{title}</h1>
           {lead && <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">{lead}</p>}
+          {actions && <div className="mt-6 flex flex-wrap items-center gap-3">{actions}</div>}
         </header>
         {children}
       </div>
     </div>
   );
+}
+
+/** `<ShareButton>`'s strings, from the page's translator. */
+export function shareLabels(t: (key: "share.button" | "share.menu" | "share.copy" | "share.copied") => string) {
+  return { share: t("share.button"), menu: t("share.menu"), copy: t("share.copy"), copied: t("share.copied") };
 }
 
 export function formatDate(date: Date, locale: string) {
