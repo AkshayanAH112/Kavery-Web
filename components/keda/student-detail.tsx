@@ -309,7 +309,7 @@ export default function StudentProfilePage() {
               {marks.map((m: any) => (
                 <div key={m._id} className="flex items-center justify-between rounded-lg px-2 py-2 text-sm odd:bg-muted/50">
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-foreground">{m.subject}</p>
+                    <p className="truncate font-medium text-foreground">{m.examName ? `${m.examName} · ${m.subject}` : m.subject}</p>
                     <p className="text-xs text-muted-foreground">{new Date(m.examDate).toLocaleDateString()}</p>
                   </div>
                   <span className={`tabular shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${m.isAbsent ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}`}>

@@ -96,10 +96,18 @@ database page returning 500 until it is restarted.
   `recharts` and `html5-qrcode` into the Worker bundle (it went from 1.9 MB to 2.4 MB gzipped, against
   a 3 MB limit on the free plan). Check the size with `npx wrangler deploy --dry-run` after adding a
   dependency.
-- **Marks**: an absent paper is stored as `marks: 0, isAbsent: true` — every average and rank must skip
-  it; "no mark entered" (no row) is a third state. The absence suggestion on an exam roster is a hint
-  from that day's register and writes nothing. `Exam.isPublished` (default false) is the gate for
-  anything public.
+- **Marks**: an absent paper is stored as `marks: 0, isAbsent: true` — never show or average that 0;
+  "no mark entered" (no row) is a third state. The absence suggestion on a paper's roster is a hint
+  from that day's register and writes nothing.
+- **Tests** (`tests` table): what a parent gets one result for. A test has two papers (`exams` rows,
+  `part` 1 and 2 — the scholarship exam's Paper I and II, on one day or two) or one (`part` null); a
+  model exam (`kind: "model"`) is both parts on one day. Marks are entered per paper. **Every total and
+  rank comes from `combineTest()` in `lib/keda/test-results.ts`** (console, result sheet, parent page,
+  analysis): total = the parts sat, out of every part's maximum; a part the child was absent for adds
+  nothing and they are still ranked on that total; absent for every part = no total, no rank.
+  `Test.isPublished` (default false) is the gate for anything public, and the API refuses it until
+  every part's roster has a mark or an absence. `exams.test_id` is nullable in SQL only because SQLite
+  cannot add a NOT NULL foreign key to a filled table — rebuilding `exams` would cascade-delete marks.
 - **Student import** (`/console/students/import`): the sheet is read in the browser, converted from
   the Bamini font encoding by `lib/keda/bamini.ts`, previewed and edited, and only then posted to
   `/api/students/import`. Only the index number and the name beside it are read; an index number

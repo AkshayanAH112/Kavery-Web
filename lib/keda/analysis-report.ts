@@ -7,22 +7,28 @@
  * as boxes. The browser prints them exactly as they appear on screen.
  */
 
-/** An exam held in the report period — one column in the table. */
+/** A test held in the report period — one column in the table, showing its total. */
 export type AnalysisExam = {
   key: string;
   label: string;
-  subject: string;
+  kind: "test" | "model";
   examDate: string;
+  /** Part 1 + Part 2. */
   maxMarks: number;
   grade: number;
 };
 
-/** One student's result on one exam they were expected to sit. */
+/**
+ * One student's total on one test they were expected to sit. "sat" is any part
+ * sat; `note` says when the total is not both parts ("absent" for a part they
+ * missed, "missing" for a part with no mark entered yet).
+ */
 export type AnalysisStudentExam = {
   examKey: string;
   status: "sat" | "absent" | "missing";
   marks: number | null;
   maxMarks: number;
+  note: "absent" | "missing" | null;
 };
 
 /** The filters a report was produced with, so its printed header matches the table. */
@@ -31,6 +37,7 @@ export type AnalysisReportFilters = {
   end: string;
   gradeLabel: string;
   batchLabel: string;
+  kindLabel: string;
 };
 
 export function examDateLabel(iso: string) {

@@ -33,6 +33,7 @@ export default function AnalysisPage() {
   const [grade, setGrade] = useState("");
   const [batches, setBatches] = useState<any[]>([]);
   const [batchId, setBatchId] = useState("");
+  const [kind, setKind] = useState("");
   const [results, setResults] = useState<StudentResult[] | null>(null);
   const [exams, setExams] = useState<AnalysisExam[]>([]);
   const [loading, setLoading] = useState(false);
@@ -54,6 +55,7 @@ export default function AnalysisPage() {
       const params = new URLSearchParams({ start, end });
       if (grade) params.set("grade", grade);
       if (batchId) params.set("batchId", batchId);
+      if (kind) params.set("kind", kind);
       const res = await fetch(`/api/analysis?${params}`);
       const data = await res.json() as any;
       if (!res.ok) throw new Error(data.error);
@@ -64,6 +66,7 @@ export default function AnalysisPage() {
         end,
         gradeLabel: grade ? `Grade ${grade}` : "All grades",
         batchLabel: batches.find((b) => b._id === batchId)?.name ?? "All batches",
+        kindLabel: kind === "test" ? "Regular tests" : kind === "model" ? "Model exams" : "All tests",
       });
     } catch (e: any) {
       setError(e.message);
@@ -89,7 +92,7 @@ export default function AnalysisPage() {
           <div>
             <p className="text-lg font-bold">Kavery Education Development Association</p>
             <p className="text-sm">
-              Student analysis: exam results and attendance, {reportDateLabel(reportFilters.start)} to {reportDateLabel(reportFilters.end)} · {reportFilters.gradeLabel} · {reportFilters.batchLabel}
+              Student analysis: exam results and attendance, {reportDateLabel(reportFilters.start)} to {reportDateLabel(reportFilters.end)} · {reportFilters.gradeLabel} · {reportFilters.batchLabel} · {reportFilters.kindLabel}
             </p>
           </div>
         </div>
@@ -102,7 +105,7 @@ export default function AnalysisPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 rounded-lg border border-border bg-card p-6 shadow-xs sm:grid-cols-4 print:hidden">
+      <div className="grid grid-cols-1 gap-4 rounded-lg border border-border bg-card p-6 shadow-xs sm:grid-cols-5 print:hidden">
         <div>
           <label className="field-label">From</label>
           <input type="date" className="field" value={start} onChange={(e) => setStart(e.target.value)} />
@@ -138,10 +141,18 @@ export default function AnalysisPage() {
             ))}
           </select>
         </div>
+        <div>
+          <label className="field-label">Tests</label>
+          <select className="field cursor-pointer" value={kind} onChange={(e) => setKind(e.target.value)}>
+            <option value="">All tests</option>
+            <option value="test">Regular tests</option>
+            <option value="model">Model exams</option>
+          </select>
+        </div>
         <button
           onClick={runReport}
           disabled={loading}
-          className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground transition-colors duration-200 hover:bg-primary/90 disabled:opacity-60 sm:col-span-4"
+          className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground transition-colors duration-200 hover:bg-primary/90 disabled:opacity-60 sm:col-span-5"
         >
           {loading ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <LineChart size={16} aria-hidden />}
           Run report
@@ -150,10 +161,11 @@ export default function AnalysisPage() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground">
-          Students are ranked by the number of exams sat (most first, none last), then by average exam
-          mark; attendance only breaks a tie. In the exam columns,{" "}
-          <span className="font-semibold">Ab</span> = marked absent, — = no mark recorded, and a blank cell means
-          the exam wasn&apos;t held for that student&apos;s batch.
+          Each column is a test&apos;s total (Part 1 + Part 2). Students are ranked by the number of tests sat
+          (most first, none last), then by average percentage; attendance only breaks a tie. In the test
+          columns, <span className="font-semibold">Ab</span> = absent for the whole test, — = no mark recorded,
+          a small <span className="font-semibold">ab</span> after a total = absent for one part (the total is the
+          part sat), and a blank cell means the test wasn&apos;t held for that student&apos;s batch.
         </p>
         <button
           onClick={() => window.print()}
@@ -192,12 +204,13 @@ export default function AnalysisPage() {
                   {exams.map((e) => (
                     <th key={e.key} className="whitespace-nowrap px-4 py-3 text-center">
                       <span className="block">{e.label}</span>
+                      {e.kind === "model" && <span className="block text-[10px] font-bold uppercase tracking-wide opacity-80">Model exam</span>}
                       <span className="block text-xs font-normal opacity-80">
                         {examDateLabel(e.examDate)} · /{e.maxMarks}
                       </span>
                     </th>
                   ))}
-                  <th className="px-6 py-3">Exams</th>
+                  <th className="px-6 py-3">Tests</th>
                   <th className="px-6 py-3">Avg. Marks</th>
                   <th className="px-6 py-3">Attendance</th>
                 </tr>
@@ -218,7 +231,19 @@ export default function AnalysisPage() {
                       return (
                         <td key={e.key} className="px-4 py-2.5 text-center tabular-nums">
                           {!result ? null : result.status === "sat" ? (
-                            <span className="font-semibold text-foreground">{result.marks}</span>
+                            <span className="font-semibold text-foreground">
+                              {result.marks}
+                              {result.note === "absent" && (
+                                <sup className="ml-0.5 text-[10px] font-semibold text-destructive" title="Absent for one part; the total is the part sat">
+                                  ab
+                                </sup>
+                              )}
+                              {result.note === "missing" && (
+                                <sup className="ml-0.5 text-[10px] text-muted-foreground" title="A part has no mark entered yet">
+                                  —
+                                </sup>
+                              )}
+                            </span>
                           ) : result.status === "absent" ? (
                             <span className="text-xs font-semibold text-destructive" title="Marked absent">
                               Ab

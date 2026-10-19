@@ -178,6 +178,17 @@ cycles, role boundaries, deletion guards) on the dev server.
   tie-break — with "absent" and "no mark entered" shown apart. The report prints (or saves as PDF)
   through the browser so Tamil names render correctly.
 - Student profile with averages by subject
+- **Tests of two parts** (added 2026-10-19). A test is Part 1 + Part 2, like the scholarship exam's
+  Paper I and II, sat on the same day or on different days, or a single paper; a model exam is a full
+  mock with both parts on one day. Marks are entered per part, on that part's own roster and
+  register. The test page shows Part 1, Part 2, the total and the rank, and the result sheet exports
+  them. Total = the parts sat (an absent part adds nothing, the child is still ranked on it); absent
+  for both = no rank. A test is published whole, and only once every part is entered. The parent page
+  shows one card per test and summarises model exams apart; the analysis has one column per test and
+  a regular / model filter. Existing exams became single-paper tests (migrations 0001–0002, columns
+  added rather than the table rebuilt, so no mark is lost). Checked by a scripted run (49 assertions:
+  totals and ranks recomputed independently, absences in one part and both, ties, model-exam dates,
+  the publish gate, maximum lowering, analysis, the parent view and its privacy, delete).
 
 Checked by a second scripted run (37 assertions) and, together with the cricket and attendance
 suites, against the production Worker in the local Workers runtime: all three pass there.

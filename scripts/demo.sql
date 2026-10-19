@@ -56,22 +56,40 @@ INSERT OR IGNORE INTO push_log (id, topic, title, body, delivered, failed, creat
 
 -- The demo students can be opened on the parent page (/en/parents): index numbers KEDA/80/1001 to
 -- KEDA/80/1012 with phone 0770000000, or card codes KEDA-5-DE000001 to KEDA-5-DE000012. Exam year 80
--- and the DE prefix keep them clear of anything issued to a real student. The first exam is published
--- so a parent sees marks; the second is not, so the publishing switch can be tried.
--- Two exams for the demo batch, so the marks screens and the analysis have something to rank.
-INSERT OR IGNORE INTO exams (id, name, subject, grade, batch_id, exam_date, max_marks, is_published, created_at, updated_at) VALUES
-  ('demo-exam-1', 'Demo term test 1', 'Mathematics', 5, 'demo-batch', strftime('%s','now') * 1000 - 4 * 86400000, 100, 1, strftime('%s','now') * 1000, strftime('%s','now') * 1000),
-  ('demo-exam-2', 'Demo term test 2', 'Tamil', 5, 'demo-batch', strftime('%s','now') * 1000 - 1 * 86400000, 100, 0, strftime('%s','now') * 1000, strftime('%s','now') * 1000);
-UPDATE exams SET published_at = created_at WHERE id = 'demo-exam-1' AND is_published = 1 AND published_at IS NULL;
+-- and the DE prefix keep them clear of anything issued to a real student.
+-- Two tests for the demo batch. The term test is Part 1 and Part 2 on different days, fully entered and
+-- published, so a parent sees a total. The model exam is both parts on one day with Part 2 only partly
+-- entered, so the publishing gate can be tried.
+INSERT OR IGNORE INTO tests (id, name, kind, grade, batch_id, is_published, published_at, created_at, updated_at) VALUES
+  ('demo-test-1', 'Demo term test 1', 'test', 5, 'demo-batch', 1, strftime('%s','now') * 1000, strftime('%s','now') * 1000, strftime('%s','now') * 1000),
+  ('demo-test-2', 'Demo model exam 1', 'model', 5, 'demo-batch', 0, NULL, strftime('%s','now') * 1000, strftime('%s','now') * 1000);
+
+INSERT OR IGNORE INTO exams (id, test_id, part, subject, grade, batch_id, exam_date, max_marks, created_at, updated_at) VALUES
+  ('demo-exam-1', 'demo-test-1', 1, 'Part 1', 5, 'demo-batch', strftime('%s','now') * 1000 - 8 * 86400000, 100, strftime('%s','now') * 1000, strftime('%s','now') * 1000),
+  ('demo-exam-2', 'demo-test-1', 2, 'Part 2', 5, 'demo-batch', strftime('%s','now') * 1000 - 6 * 86400000, 100, strftime('%s','now') * 1000, strftime('%s','now') * 1000),
+  ('demo-exam-3', 'demo-test-2', 1, 'Part 1', 5, 'demo-batch', strftime('%s','now') * 1000 - 1 * 86400000, 100, strftime('%s','now') * 1000, strftime('%s','now') * 1000),
+  ('demo-exam-4', 'demo-test-2', 2, 'Part 2', 5, 'demo-batch', strftime('%s','now') * 1000 - 1 * 86400000, 100, strftime('%s','now') * 1000, strftime('%s','now') * 1000);
 
 -- Scores are arithmetic on the student number, not random, so the demo looks the same every time.
--- Every sixth student is absent from the first paper; the second paper is only partly entered.
+-- Term test: every sixth student is absent from Part 1 and every eighth from Part 2, so students 6, 12
+-- and 18 have only Part 2, 8 and 16 only Part 1, and 24 missed both (no total).
 WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 24)
 INSERT OR IGNORE INTO marks (id, exam_id, student_id, marks, is_absent, created_at, updated_at)
 SELECT 'demo-mark-1-' || i, 'demo-exam-1', 'demo-student-' || i, CASE WHEN i % 6 = 0 THEN 0 ELSE 38 + (i * 37) % 58 END, CASE WHEN i % 6 = 0 THEN 1 ELSE 0 END, strftime('%s','now') * 1000, strftime('%s','now') * 1000
 FROM n;
 
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 24)
+INSERT OR IGNORE INTO marks (id, exam_id, student_id, marks, is_absent, created_at, updated_at)
+SELECT 'demo-mark-2-' || i, 'demo-exam-2', 'demo-student-' || i, CASE WHEN i % 8 = 0 THEN 0 ELSE 40 + (i * 23) % 55 END, CASE WHEN i % 8 = 0 THEN 1 ELSE 0 END, strftime('%s','now') * 1000, strftime('%s','now') * 1000
+FROM n;
+
+-- Model exam: Part 1 entered for everyone, Part 2 for the first sixteen only.
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 24)
+INSERT OR IGNORE INTO marks (id, exam_id, student_id, marks, is_absent, created_at, updated_at)
+SELECT 'demo-mark-3-' || i, 'demo-exam-3', 'demo-student-' || i, 42 + (i * 31) % 54, 0, strftime('%s','now') * 1000, strftime('%s','now') * 1000
+FROM n;
+
 WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 16)
 INSERT OR IGNORE INTO marks (id, exam_id, student_id, marks, is_absent, created_at, updated_at)
-SELECT 'demo-mark-2-' || i, 'demo-exam-2', 'demo-student-' || i, 45 + (i * 29) % 50, 0, strftime('%s','now') * 1000, strftime('%s','now') * 1000
+SELECT 'demo-mark-4-' || i, 'demo-exam-4', 'demo-student-' || i, 45 + (i * 29) % 50, 0, strftime('%s','now') * 1000, strftime('%s','now') * 1000
 FROM n;

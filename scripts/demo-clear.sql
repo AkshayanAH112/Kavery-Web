@@ -1,6 +1,7 @@
 -- Removes everything scripts/demo.sql added. Children before parents.
 DELETE FROM marks WHERE id LIKE 'demo-%';
 DELETE FROM exams WHERE id LIKE 'demo-%';
+DELETE FROM tests WHERE id LIKE 'demo-%';
 DELETE FROM attendance WHERE id LIKE 'demo-%';
 DELETE FROM leave_alerts WHERE id LIKE 'demo-%';
 DELETE FROM class_sessions WHERE id LIKE 'demo-%';

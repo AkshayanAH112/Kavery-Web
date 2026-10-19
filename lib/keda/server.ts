@@ -12,7 +12,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { keepLettersApart } from "@/lib/keda/bamini";
 
-const { batches: B, students: S, classSessions: C, counters, exams: E, marks: M } = schema;
+const { batches: B, students: S, classSessions: C, counters, exams: E, tests: T, marks: M } = schema;
 
 export type BatchRow = typeof B.$inferSelect;
 export type StudentRow = typeof S.$inferSelect;
@@ -238,24 +238,29 @@ export async function readBody(request: Request): Promise<Record<string, any> | 
 /* -------------------------------------------------------------------- marks */
 
 /**
- * A student's marks in the flat shape KCSC's screens read (subject, date and
- * maximum copied down from the exam). `marks` is 0 for an absent student —
- * always check `isAbsent` before treating it as a score.
+ * A student's marks, one per paper, in the flat shape KCSC's screens read
+ * (subject, date and maximum copied down from the paper, the name from its
+ * test; a two-part test's papers are "Part 1" and "Part 2"). `marks` is 0 for an
+ * absent student — always check `isAbsent` before treating it as a score.
  */
 export async function marksForStudent(studentId: string) {
   const rows = await getDb()
-    .select({ mark: M, exam: E })
+    .select({ mark: M, exam: E, testName: T.name, kind: T.kind })
     .from(M)
     .innerJoin(E, eq(M.examId, E.id))
+    .leftJoin(T, eq(E.testId, T.id))
     .where(eq(M.studentId, studentId))
     .orderBy(asc(E.examDate));
   return rows
-    .map(({ mark, exam }) => ({
+    .map(({ mark, exam, testName, kind }) => ({
       _id: mark.id,
       studentId: mark.studentId,
       examId: exam.id,
+      testId: exam.testId,
+      part: exam.part,
+      kind: kind ?? "test",
       subject: exam.subject,
-      examName: exam.name ?? undefined,
+      examName: testName ?? undefined,
       examDate: exam.examDate.toISOString(),
       marks: mark.marks,
       isAbsent: mark.isAbsent,

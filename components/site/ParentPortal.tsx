@@ -6,7 +6,7 @@ import { AlertCircle, BellRing, CalendarCheck, Check, Loader2, LogOut, Megaphone
 import { useLocale, useTranslations } from "next-intl";
 import ResultsView, { type ResultsPayload } from "@/components/site/ResultsView";
 
-type Notice = { kind: "leave"; date: string; leaveCount: number } | { kind: "result"; date: string; subject: string; name: string | null };
+type Notice = { kind: "leave"; date: string; leaveCount: number } | { kind: "result"; date: string; name: string };
 type Child = ResultsPayload & {
   attendance: { marked: number; present: number; absent: number; percent: number | null; recent: { date: string; subject: string | null; time: string | null; present: boolean }[] };
   notices: Notice[];
@@ -155,7 +155,7 @@ function ChildPanel({ child }: { child: Child }) {
   const t = useTranslations("Parents");
   const { attendance } = child;
   const noticeText = (n: Notice) =>
-    n.kind === "result" ? t("notice_result", { exam: n.name ? `${n.subject} — ${n.name}` : n.subject }) : t(n.leaveCount >= 3 ? "notice_leave_many" : "notice_leave", { count: n.leaveCount });
+    n.kind === "result" ? t("notice_result", { exam: n.name }) :t(n.leaveCount >= 3 ? "notice_leave_many" : "notice_leave", { count: n.leaveCount });
 
   return (
     <div className="flex flex-col gap-8">

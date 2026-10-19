@@ -153,23 +153,52 @@ export const leaveAlerts = sqliteTable(
   (t) => [uniqueIndex("leave_alerts_uq").on(t.studentId, t.type, t.cycleGeneration)],
 );
 
-export const exams = sqliteTable(
-  "exams",
+/**
+ * What a parent gets one result for. A Grade 4/5 test is two papers, Part 1 and Part 2 (the
+ * scholarship exam's Paper I and Paper II), sat on one day or on different days, and its result is
+ * their total. A model exam is a full mock: both parts on one day. A test with a single paper (a
+ * class quiz) has one paper and no part number. Published as a whole, never one part at a time.
+ */
+export const tests = sqliteTable(
+  "tests",
   {
     id: id(),
-    name: text("name"),
-    subject: text("subject").notNull(),
+    name: text("name").notNull(),
+    /** "test" | "model" */
+    kind: text("kind").notNull().default("test"),
     grade: integer("grade").notNull(),
     batchId: text("batch_id").notNull().references(() => batches.id, { onDelete: "cascade" }),
-    examDate: ts("exam_date").notNull(),
-    maxMarks: real("max_marks").notNull(),
-    /** Gate for the public results lookup. Default false. */
+    /** Gate for the parent page. Default false. */
     isPublished: bool("is_published").notNull().default(false),
     publishedAt: ts("published_at"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("exams_batch_idx").on(t.batchId, t.grade)],
+  (t) => [index("tests_batch_idx").on(t.batchId, t.grade)],
+);
+
+/** One paper of a test. Marks are entered per paper; grade and batch are copied from the test. */
+export const exams = sqliteTable(
+  "exams",
+  {
+    id: id(),
+    /**
+     * Always set. Nullable only because SQLite cannot add a NOT NULL foreign key to a table that
+     * already has rows, and rebuilding `exams` instead would cascade-delete every mark.
+     */
+    testId: text("test_id").references(() => tests.id, { onDelete: "cascade" }),
+    /** 1 or 2 on a two-part test; null on a single-paper test. */
+    part: integer("part"),
+    /** "Part 1" / "Part 2", or what a single paper is in ("Mathematics"). */
+    subject: text("subject").notNull(),
+    grade: integer("grade").notNull(),
+    batchId: text("batch_id").notNull().references(() => batches.id, { onDelete: "cascade" }),
+    examDate: ts("exam_date").notNull(),
+    maxMarks: real("max_marks").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("exams_batch_idx").on(t.batchId, t.grade), uniqueIndex("exams_test_part_uq").on(t.testId, t.part)],
 );
 
 /** marks is stored as 0 for an absent student — always check isAbsent first. */

@@ -127,7 +127,7 @@ async function attendanceFor(student: StudentRow) {
   };
 }
 
-type Notice = { kind: "leave"; date: string; leaveCount: number } | { kind: "result"; date: string; subject: string; name: string | null };
+type Notice = { kind: "leave"; date: string; leaveCount: number } | { kind: "result"; date: string; name: string };
 
 /** Everything one child's parent sees. Assembled field by field; nothing from the family's own record goes back out. */
 export async function childView(student: StudentRow) {
@@ -136,7 +136,7 @@ export async function childView(student: StudentRow) {
 
   const notices: Notice[] = [
     ...alerts.map((a) => ({ kind: "leave" as const, date: a.createdAt.toISOString(), leaveCount: a.leaveCount })),
-    ...published.map((e) => ({ kind: "result" as const, date: (e.publishedAt ?? e.examDate).toISOString(), subject: e.subject, name: e.name ?? null })),
+    ...published.map((t) => ({ kind: "result" as const, date: (t.publishedAt ?? t.createdAt).toISOString(), name: t.name })),
   ]
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 10);
