@@ -168,6 +168,11 @@ database page returning 500 until it is restarted.
     opens is re-read from the database on every request.
   - What a parent sees is built field by field in `childView()` and `lib/keda/results.ts`: published
     exams only, an absent paper as absent (never 0), no guardian details, no internal ids.
+  - **Ranks are by marks only — attendance never ranks or breaks a tie**, here or in the console's
+    Analysis (where students level on tests sat and average share a rank). The current-exam card and
+    the marks analysis (trend, rank changes) come from `lib/keda/progress.ts`, which only rearranges
+    what `studentResults` returns; the chart (`components/site/ProgressChart.tsx`) steps over an
+    absent exam rather than drawing a 0.
   - A wrong card, number or phone all get the same "no match". Failed tries are braked per connection
     and per index number.
   - Announcements on that page are KEDA's published posts (`org = "keda"`). Publishing a post or an

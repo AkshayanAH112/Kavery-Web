@@ -16,8 +16,8 @@ type StudentResult = {
   examsMissed: number;
   avgMarksPercent: number | null;
   attendancePercent: number | null;
-  combinedScore: number | null;
-  partial: boolean;
+  /** By marks only; students level on tests sat and average share it. */
+  rank: number;
 };
 
 function isoDate(d: Date) {
@@ -101,7 +101,7 @@ export default function AnalysisPage() {
       <div className="print:hidden">
         <h1 className="text-3xl text-foreground">Analysis</h1>
         <p className="text-muted-foreground">
-          Rank students by exam results and attendance together, over any date range.
+          Rank students by exam results over any date range. Attendance is shown beside them but does not affect the rank.
         </p>
       </div>
 
@@ -162,7 +162,8 @@ export default function AnalysisPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground">
           Each column is a test&apos;s total (Part 1 + Part 2). Students are ranked by the number of tests sat
-          (most first, none last), then by average percentage; attendance only breaks a tie. In the test
+          (most first, none last), then by average percentage. Ranks come from marks alone: attendance is shown
+          for reference, and students level on both share a rank. In the test
           columns, <span className="font-semibold">Ab</span> = absent for the whole test, — = no mark recorded,
           a small <span className="font-semibold">ab</span> after a total = absent for one part (the total is the
           part sat), and a blank cell means the test wasn&apos;t held for that student&apos;s batch.
@@ -216,11 +217,11 @@ export default function AnalysisPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {results.map((r, i) => {
+                {results.map((r) => {
                   const byExam = new Map(r.exams.map((e) => [e.examKey, e]));
                   return (
                   <tr key={r.studentId} className="transition-colors duration-200 hover:bg-muted">
-                    <td className="px-6 py-2.5 font-bold text-foreground">{i + 1}</td>
+                    <td className="px-6 py-2.5 font-bold text-foreground">{r.rank}</td>
                     <td className="px-6 py-2.5">
                       <span className="block font-semibold text-foreground">{r.name}</span>
                       {r.school && <span className="block text-xs text-muted-foreground">{r.school}</span>}

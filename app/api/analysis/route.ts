@@ -11,14 +11,15 @@ const groupKey = (batchId: string | null, grade: number) => `${batchId ?? ""}|${
 type ExamStatus = "sat" | "absent" | "missing";
 
 /**
- * Marks and attendance together for a date range — the one combined ranking.
+ * Exam results for a date range, ranked by marks alone, with attendance beside them.
  *
  * Each TEST is one column: its total (Part 1 + Part 2), worked out by `combineTest`
  * exactly as the parent page does. A test is in the range when any of its parts
  * is. A student is ranked by tests sat first, then by their average percentage on
- * the tests they sat, with attendance only breaking ties: someone who sat one test
- * and scored 95% must not outrank someone who sat all five. Absent for a whole
- * test and nothing entered are both "not sat", but they are reported apart.
+ * the tests they sat: someone who sat one test and scored 95% must not outrank
+ * someone who sat all five. Attendance is reported but never ranks anyone — two
+ * students level on both share a rank (1, 2, 2, 4). Absent for a whole test and
+ * nothing entered are both "not sat", but they are reported apart.
  * `kind` narrows it to regular tests or model exams.
  */
 export async function GET(request: Request) {
@@ -97,7 +98,6 @@ export async function GET(request: Request) {
     const a = attendance.get(s.id);
     const avgMarksPercent = m ? Math.round(m.total / m.count) : null;
     const attendancePercent = a && a.total > 0 ? Math.round((a.attended / a.total) * 100) : null;
-    const parts = [avgMarksPercent, attendancePercent].filter((v): v is number => v !== null);
 
     // Expected tests: every test for the student's batch and grade held on or after they registered,
     // plus any they have a mark on regardless.
@@ -128,12 +128,21 @@ export async function GET(request: Request) {
       examsMissed: expected.size - examsSat,
       avgMarksPercent,
       attendancePercent,
-      combinedScore: parts.length > 0 ? Math.round(parts.reduce((x, y) => x + y, 0) / parts.length) : null,
-      partial: parts.length < 2,
+      rank: 0,
     };
   });
 
-  results.sort((a, b) => b.examsSat - a.examsSat || (b.avgMarksPercent ?? -1) - (a.avgMarksPercent ?? -1) || (b.attendancePercent ?? -1) - (a.attendancePercent ?? -1));
+  // Marks only: tests sat, then average percentage. A tie shares the rank; name order is just for reading.
+  // The exact average ranks — the rounded one is for display, and two averages that round alike are not a tie.
+  const exact = (studentId: string) => {
+    const m = average.get(studentId);
+    return m ? Math.round((m.total / m.count) * 1e6) / 1e6 : -1;
+  };
+  results.sort((a, b) => b.examsSat - a.examsSat || exact(b.studentId) - exact(a.studentId) || a.name.localeCompare(b.name));
+  results.forEach((r, i) => {
+    const prev = results[i - 1];
+    r.rank = prev && prev.examsSat === r.examsSat && exact(prev.studentId) === exact(r.studentId) ? prev.rank : i + 1;
+  });
 
   const used = new Set(results.flatMap((r) => r.exams.map((e) => e.examKey)));
   return Response.json({

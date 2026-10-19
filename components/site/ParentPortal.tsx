@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import Link from "next/link";
 import { AlertCircle, BellRing, CalendarCheck, Check, Loader2, LogOut, Megaphone, QrCode, UserPlus, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import ResultsView, { type ResultsPayload } from "@/components/site/ResultsView";
+import ResultsView, { CurrentExam, type ResultsPayload } from "@/components/site/ResultsView";
 
 type Notice = { kind: "leave"; date: string; leaveCount: number } | { kind: "result"; date: string; name: string };
 type Child = ResultsPayload & {
@@ -159,6 +159,9 @@ function ChildPanel({ child }: { child: Child }) {
 
   return (
     <div className="flex flex-col gap-8">
+      {/* The rank in the latest exam leads: it is what a parent opens the page for after results come out. */}
+      <CurrentExam results={child.results} />
+
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="live-card p-6 md:p-8">
           <h2 className="eyebrow flex items-center gap-2 text-accent">

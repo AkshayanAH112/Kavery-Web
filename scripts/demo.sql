@@ -93,3 +93,35 @@ WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 16)
 INSERT OR IGNORE INTO marks (id, exam_id, student_id, marks, is_absent, created_at, updated_at)
 SELECT 'demo-mark-4-' || i, 'demo-exam-4', 'demo-student-' || i, 45 + (i * 29) % 50, 0, strftime('%s','now') * 1000, strftime('%s','now') * 1000
 FROM n;
+
+-- Two earlier published term tests, so the parent page's marks analysis has a trend and rank changes
+-- to show. Each is both parts on one day; every ninth student missed the second one entirely.
+INSERT OR IGNORE INTO tests (id, name, kind, grade, batch_id, is_published, published_at, created_at, updated_at) VALUES
+  ('demo-test-3', 'Demo monthly test 1', 'test', 5, 'demo-batch', 1, strftime('%s','now') * 1000 - 33 * 86400000, strftime('%s','now') * 1000, strftime('%s','now') * 1000),
+  ('demo-test-4', 'Demo monthly test 2', 'test', 5, 'demo-batch', 1, strftime('%s','now') * 1000 - 19 * 86400000, strftime('%s','now') * 1000, strftime('%s','now') * 1000);
+
+INSERT OR IGNORE INTO exams (id, test_id, part, subject, grade, batch_id, exam_date, max_marks, created_at, updated_at) VALUES
+  ('demo-exam-5', 'demo-test-3', 1, 'Part 1', 5, 'demo-batch', strftime('%s','now') * 1000 - 36 * 86400000, 100, strftime('%s','now') * 1000, strftime('%s','now') * 1000),
+  ('demo-exam-6', 'demo-test-3', 2, 'Part 2', 5, 'demo-batch', strftime('%s','now') * 1000 - 36 * 86400000, 100, strftime('%s','now') * 1000, strftime('%s','now') * 1000),
+  ('demo-exam-7', 'demo-test-4', 1, 'Part 1', 5, 'demo-batch', strftime('%s','now') * 1000 - 22 * 86400000, 100, strftime('%s','now') * 1000, strftime('%s','now') * 1000),
+  ('demo-exam-8', 'demo-test-4', 2, 'Part 2', 5, 'demo-batch', strftime('%s','now') * 1000 - 22 * 86400000, 100, strftime('%s','now') * 1000, strftime('%s','now') * 1000);
+
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 24)
+INSERT OR IGNORE INTO marks (id, exam_id, student_id, marks, is_absent, created_at, updated_at)
+SELECT 'demo-mark-5-' || i, 'demo-exam-5', 'demo-student-' || i, 30 + (i * 41) % 52, 0, strftime('%s','now') * 1000, strftime('%s','now') * 1000
+FROM n;
+
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 24)
+INSERT OR IGNORE INTO marks (id, exam_id, student_id, marks, is_absent, created_at, updated_at)
+SELECT 'demo-mark-6-' || i, 'demo-exam-6', 'demo-student-' || i, 34 + (i * 19) % 48, 0, strftime('%s','now') * 1000, strftime('%s','now') * 1000
+FROM n;
+
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 24)
+INSERT OR IGNORE INTO marks (id, exam_id, student_id, marks, is_absent, created_at, updated_at)
+SELECT 'demo-mark-7-' || i, 'demo-exam-7', 'demo-student-' || i, CASE WHEN i % 9 = 0 THEN 0 ELSE 36 + (i * 29) % 54 END, CASE WHEN i % 9 = 0 THEN 1 ELSE 0 END, strftime('%s','now') * 1000, strftime('%s','now') * 1000
+FROM n;
+
+WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 24)
+INSERT OR IGNORE INTO marks (id, exam_id, student_id, marks, is_absent, created_at, updated_at)
+SELECT 'demo-mark-8-' || i, 'demo-exam-8', 'demo-student-' || i, CASE WHEN i % 9 = 0 THEN 0 ELSE 38 + (i * 17) % 50 END, CASE WHEN i % 9 = 0 THEN 1 ELSE 0 END, strftime('%s','now') * 1000, strftime('%s','now') * 1000
+FROM n;
