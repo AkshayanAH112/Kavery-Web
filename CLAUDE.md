@@ -73,6 +73,10 @@ database page returning 500 until it is restarted.
   Club membership (`members`) is the only place money appears.
 - **`lib/console-nav.ts` lists every console module** (grouped as in the sidebar) and whether it is
   built (`ready`). Flip it when a module's pages land; unbuilt ones show as "Soon" and are not links.
+  On phones and tablets (below `lg`) the console has no sidebar: `components/console/MobileNav.tsx` is a
+  floating bottom bar whose tabs come from `mobileTabs()` in the same file (the scanner raised in the
+  middle for roles that scan), with "More" opening every page in a bottom sheet. Icons for both live in
+  `components/console/icons.ts`.
 - **Token names follow shadcn** (`bg-card`, `text-muted-foreground`, `border-border`, `bg-primary`,
   `text-destructive`…), aliased onto Kavery's semantic tokens in `app/globals.css`, so shadcn-style
   components and KCSC's admin screens drop in. One deliberate exception: **`bg-accent` is the crest

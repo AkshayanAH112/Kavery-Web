@@ -1,0 +1,45 @@
+import {
+  BarChart3,
+  BellRing,
+  CalendarCheck,
+  CalendarDays,
+  ClipboardList,
+  FileSpreadsheet,
+  GraduationCap,
+  IdCard,
+  Images,
+  LayoutDashboard,
+  Newspaper,
+  ScanLine,
+  Settings,
+  Shield,
+  Table2,
+  TriangleAlert,
+  Trophy,
+  UserCog,
+  type LucideIcon,
+} from "lucide-react";
+
+/** The icon for each `icon` key in lib/console-nav.ts. Read by the sidebar and the phone's bottom bar. */
+export const MODULE_ICONS: Record<string, LucideIcon> = {
+  dashboard: LayoutDashboard,
+  trophy: Trophy,
+  shield: Shield,
+  table: Table2,
+  scan: ScanLine,
+  students: GraduationCap,
+  calendar: CalendarDays,
+  today: CalendarCheck,
+  report: ClipboardList,
+  alert: TriangleAlert,
+  analysis: BarChart3,
+  marks: FileSpreadsheet,
+  members: IdCard,
+  news: Newspaper,
+  gallery: Images,
+  bell: BellRing,
+  staff: UserCog,
+  settings: Settings,
+};
+
+export const moduleIcon = (key: string): LucideIcon => MODULE_ICONS[key] ?? LayoutDashboard;

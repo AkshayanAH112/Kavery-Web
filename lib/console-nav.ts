@@ -12,6 +12,8 @@ export type ConsoleModule = {
   key: string;
   href: string;
   label: string;
+  /** What the phone's bottom bar calls it, when the label is too long for a tab. */
+  short?: string;
   icon: string;
   permission: Permission | null;
   ready: boolean;
@@ -22,12 +24,12 @@ export type ConsoleGroup = { label: string; items: ConsoleModule[] };
 export const CONSOLE_GROUPS: ConsoleGroup[] = [
   {
     label: "Overview",
-    items: [{ key: "home", href: "/console", label: "Dashboard", icon: "dashboard", permission: null, ready: true }],
+    items: [{ key: "home", href: "/console", label: "Dashboard", short: "Home", icon: "dashboard", permission: null, ready: true }],
   },
   {
     label: "Cricket",
     items: [
-      { key: "matches", href: "/console/cricket", label: "Matches and scoring", icon: "trophy", permission: "cricket.score", ready: true },
+      { key: "matches", href: "/console/cricket", label: "Matches and scoring", short: "Matches", icon: "trophy", permission: "cricket.score", ready: true },
       { key: "teams", href: "/console/cricket/teams", label: "Teams", icon: "shield", permission: "cricket.score", ready: true },
       { key: "tournaments", href: "/console/cricket/tournaments", label: "Tournaments", icon: "table", permission: "cricket.manage", ready: true },
     ],
@@ -35,13 +37,13 @@ export const CONSOLE_GROUPS: ConsoleGroup[] = [
   {
     label: "KEDA classes",
     items: [
-      { key: "scanner", href: "/console/scanner", label: "Scan attendance", icon: "scan", permission: "attendance.mark", ready: true },
-      { key: "today", href: "/console/attendance/today", label: "Today's registers", icon: "today", permission: "attendance.mark", ready: true },
+      { key: "scanner", href: "/console/scanner", label: "Scan attendance", short: "Scan", icon: "scan", permission: "attendance.mark", ready: true },
+      { key: "today", href: "/console/attendance/today", label: "Today's registers", short: "Today", icon: "today", permission: "attendance.mark", ready: true },
       { key: "students", href: "/console/students", label: "Students", icon: "students", permission: "education.manage", ready: true },
       { key: "batches", href: "/console/batches", label: "Batches and classes", icon: "calendar", permission: "education.manage", ready: true },
       { key: "attendance", href: "/console/attendance", label: "Attendance report", icon: "report", permission: "education.manage", ready: true },
       { key: "alerts", href: "/console/alerts", label: "Leave alerts", icon: "alert", permission: "education.manage", ready: true },
-      { key: "exams", href: "/console/exams", label: "Exams and marks", icon: "marks", permission: "education.manage", ready: true },
+      { key: "exams", href: "/console/exams", label: "Exams and marks", short: "Exams", icon: "marks", permission: "education.manage", ready: true },
       { key: "analysis", href: "/console/analysis", label: "Analysis", icon: "analysis", permission: "education.manage", ready: true },
     ],
   },
@@ -62,6 +64,23 @@ export const CONSOLE_GROUPS: ConsoleGroup[] = [
     ],
   },
 ];
+
+/**
+ * The phone's bottom bar: the first modules in this order that the role can open, then "More".
+ * Scanning is the one job done standing up with a phone in hand, so when the role has it, it is
+ * the raised button in the middle and three tabs sit around it; otherwise there are four.
+ */
+const MOBILE_TAB_ORDER = ["home", "matches", "students", "exams", "today", "news", "members", "teams", "gallery", "tournaments"];
+const MOBILE_CENTRE = "scanner";
+
+export function mobileTabs(groups: ConsoleGroup[]) {
+  const ready = new Map(groups.flatMap((g) => g.items).filter((m) => m.ready).map((m) => [m.key, m]));
+  const centre = ready.get(MOBILE_CENTRE) ?? null;
+  const tabs = MOBILE_TAB_ORDER.map((key) => ready.get(key))
+    .filter((m): m is ConsoleModule => !!m)
+    .slice(0, centre ? 3 : 4);
+  return { tabs, centre };
+}
 
 /** The groups a role can see, with empty groups dropped. */
 export function groupsFor(role: Role): ConsoleGroup[] {

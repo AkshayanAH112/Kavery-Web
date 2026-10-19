@@ -44,7 +44,7 @@ export default async function ConsoleHome({ searchParams }: PageProps<"/console"
       {denied && <Note tone="error">Your role does not include that page. Ask an administrator if you need access.</Note>}
 
       {/* Row 1 — welcome + the two numbers this role acts on most */}
-      <div className="grid gap-5 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         <Card className="relative overflow-hidden p-6 lg:col-span-6">
           <div className="relative z-10 max-w-[70%]">
             <h1 className="text-xl font-semibold tracking-tight">Hello, {session.name.split(" ")[0]}</h1>
@@ -101,7 +101,8 @@ export default async function ConsoleHome({ searchParams }: PageProps<"/console"
 
       {/* Row 2 — attendance over the last week, membership beside it */}
       {(education || members) && (
-        <div className="grid gap-5 lg:grid-cols-12">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+          {/* grid-cols-1, not the implicit track: an implicit column grows to the chart's width on a phone instead of letting it scroll. */}
           {education && (
             <Card className={`p-6 ${members ? "lg:col-span-8" : "lg:col-span-12"}`}>
               <CardHeader title="Attendance" description="Class registers over the last 7 days" />
@@ -110,7 +111,7 @@ export default async function ConsoleHome({ searchParams }: PageProps<"/console"
                   <EmptyState title="No registers in the last 7 days">When a class is held and its attendance is marked, each day shows here as present against absent.</EmptyState>
                 </div>
               ) : (
-                <div className="mt-6 grid gap-8 md:grid-cols-[1fr_13rem]">
+                <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_13rem]">
                   {/* Scrolls sideways on a phone rather than shrinking the axis labels below a readable size. */}
                   <div className="overflow-x-auto">
                     <div className="min-w-[26rem]">
@@ -178,7 +179,7 @@ export default async function ConsoleHome({ searchParams }: PageProps<"/console"
       )}
 
       {/* Row 3 — three lists */}
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {cricket && (
           <Card className="p-6">
             <CardHeader title="Recent matches" description="Latest activity first" />

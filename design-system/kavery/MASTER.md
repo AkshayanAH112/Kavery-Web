@@ -181,7 +181,12 @@ text and a `Badge` or figure.
 **Console shell** (`components/console/Shell.tsx`) — sidebar on the page background with small-caps
 group labels and an ink pill for the current page; the working area is an inset rounded panel with a
 sticky top bar (sidebar toggle, page search, theme toggle, account menu). The sidebar collapses to
-icons on desktop and becomes a drawer on phones.
+icons on desktop. Below `lg` (1024px) there is no sidebar: a **floating bottom bar** (`MobileNav`) holds
+the role's main pages (`mobileTabs()` in `lib/console-nav.ts`), the scanner raised in the middle when
+the role can scan, and "More", which opens a bottom sheet of every page as an icon grid. The current
+tab's icon sits in a filled ink pill; "More" lights up when the page is only in the sheet. The bar sits
+above the home indicator (`viewport-fit=cover`, `env(safe-area-inset-bottom)`), steps aside while a text
+field has focus, and stays under every dialog (z-30).
 
 **Console charts** (`components/console/charts.tsx`) — hand-written SVG, no chart library: stacked
 rounded bars and a donut. Every chart has a text summary for screen readers and its numbers repeated as
@@ -199,8 +204,10 @@ that is not core to the page (news, gallery, stats at zero) is **not rendered at
 
 - Public site: `container-x` (82rem max, fluid gutter), sections separated by `--section-y`.
 - Navigation links collapse to the menu below `xl` — in Tamil they stop fitting much earlier than in English.
-- Console: ink sidebar on desktop, a horizontally scrolling strip on phones (scoring and scanning are
-  phone jobs). Content area has no max width; tables need the room.
+- Console: sidebar on desktop, the floating bottom bar on phones and tablets (scoring and scanning are
+  phone jobs). Content area has no max width; tables need the room. A console grid that holds a chart
+  or table says `grid-cols-1`: the implicit track grows to its content on a phone instead of letting it
+  scroll, and the whole page then scrolls sideways.
 - Breakpoints to check: 375, 768, 1024, 1440. No horizontal page scroll at any of them.
 
 ## Do not
