@@ -387,7 +387,7 @@ function EditClassModal({ classSession, onClose, onSaved }: { classSession: any;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-3xl border border-border bg-card p-6 shadow-2xl sm:p-8" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-h-[calc(100dvh-2rem)] overflow-y-auto max-w-lg rounded-3xl border border-border bg-card p-6 shadow-2xl sm:p-8" onClick={(e) => e.stopPropagation()}>
         <div className="mb-6 flex items-start justify-between">
           <h2 className="text-xl font-bold text-foreground">Edit Class Session</h2>
           <button onClick={onClose} className="cursor-pointer text-muted-foreground hover:text-foreground"><X size={20} /></button>

@@ -159,7 +159,7 @@ export default function GalleryFoldersPage() {
       {/* Create Folder Modal */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border p-6 sm:p-8 rounded-3xl max-w-sm w-full shadow-2xl">
+          <div className="bg-card border border-border p-6 sm:p-8 rounded-3xl max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto shadow-2xl">
             <h2 className="text-xl font-bold mb-6 text-foreground">New Folder</h2>
             <form onSubmit={submitCreateFolder} className="space-y-4">
               <div>
@@ -195,7 +195,7 @@ export default function GalleryFoldersPage() {
       {/* Delete Confirmation Modal */}
       {folderToDelete && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border p-6 sm:p-8 rounded-3xl max-w-sm w-full shadow-2xl">
+          <div className="bg-card border border-border p-6 sm:p-8 rounded-3xl max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto shadow-2xl">
             <h2 className="text-xl font-bold mb-4 text-foreground">Delete Folder?</h2>
             <p className="text-muted-foreground mb-6">Are you sure you want to delete this folder and ALL images inside it? This cannot be undone.</p>
             <div className="flex gap-3">
