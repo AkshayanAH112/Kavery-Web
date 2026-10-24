@@ -3,7 +3,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { computeAge, isMinor, isNicRequired, JOB_CATEGORIES, type JobCategory, type MembershipSettings } from "@/lib/membership/rules";
+import { computeAge, isMinor, isNicRequired, isValidNic, JOB_CATEGORIES, MIN_MEMBER_AGE, nicBirthDate, nicGender, OCCUPATIONS, type JobCategory, type MembershipSettings, type Occupation as OccupationValue } from "@/lib/membership/rules";
 import { shrinkImage } from "@/lib/upload-client";
 
 /** What the forms need to know about money. Null while the club charges nothing. */
@@ -14,7 +14,7 @@ const PHONE_PATTERN = "\\+?[0-9 \\-]{7,18}";
 const NIC_PATTERN = "([0-9]{9}[VvXx]|[0-9]{12})";
 
 const inputClass =
-  "w-full min-h-12 rounded-[var(--field-radius)] border border-line bg-surface-2/60 px-4 py-3 text-base text-fg outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-accent";
+  "w-full min-h-12 rounded-(--field-radius) border border-line bg-surface-2/60 px-4 py-3 text-base text-fg outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-accent";
 const fileClass = `${inputClass} text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-on-accent`;
 
 function Field({ label, note, hint, children }: { label: string; note?: string; hint?: string; children: ReactNode }) {
@@ -78,8 +78,10 @@ function useSubmit(url: string) {
   return { ...state, submit };
 }
 
+/** School student, undergraduate or working — and a working member's occupation from the list, or typed in. */
 function Occupation({ category, onCategory, other, onOther }: { category: JobCategory; onCategory: (c: JobCategory) => void; other: string; onOther: (v: string) => void }) {
   const t = useTranslations("Membership");
+  const [occupation, setOccupation] = useState<OccupationValue | "">("");
   return (
     <>
       <Field label={t("occupation")}>
@@ -92,6 +94,20 @@ function Occupation({ category, onCategory, other, onOther }: { category: JobCat
         </select>
       </Field>
       {category === "other" && (
+        <Field label={t("job_which")}>
+          <select name="occupation" required value={occupation} onChange={(e) => setOccupation(e.target.value as OccupationValue)} className={inputClass}>
+            <option value="" disabled>
+              {t("job_select")}
+            </option>
+            {OCCUPATIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {t(`occupation_${o.value}`)}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      {category === "other" && occupation === "other" && (
         <Field label={t("job_specify")}>
           <input name="jobOther" required maxLength={80} value={other} onChange={(e) => onOther(e.target.value)} className={inputClass} />
         </Field>
@@ -110,7 +126,7 @@ function Payment({ fee, category }: { fee: NonNullable<FeeInfo>; category: JobCa
   ];
   return (
     <Section title={t("section_payment")}>
-      <div className="rounded-[var(--card-radius)] border border-line bg-surface-2/60 p-5">
+      <div className="rounded-(--card-radius) border border-line bg-surface-2/60 p-5">
         <p className="text-sm text-muted-foreground">{t("fee_for", { category: t(`job_${category}`) })}</p>
         <p className="display mt-1 text-4xl text-accent tabular">
           {fee.currency} {fee.fees[category].toLocaleString("en-LK")}
@@ -138,7 +154,7 @@ function Submit({ sending, error, label, sendingLabel }: { sending: boolean; err
   return (
     <>
       {error && (
-        <p role="alert" className="flex items-start gap-2 rounded-[var(--field-radius)] border border-danger/50 bg-danger/10 px-4 py-3 font-medium text-fg">
+        <p role="alert" className="flex items-start gap-2 rounded-(--field-radius) border border-danger/50 bg-danger/10 px-4 py-3 font-medium text-fg">
           <AlertCircle size={20} className="mt-0.5 shrink-0 text-danger" aria-hidden /> {error}
         </p>
       )}
@@ -158,13 +174,26 @@ const Honeypot = () => <input type="text" name="ksc_check" tabIndex={-1} autoCom
 export function JoinForm({ fee }: { fee: FeeInfo }) {
   const t = useTranslations("Membership");
   const { sending, done, error, submit } = useSubmit("/api/public/members");
-  const [dob, setDob] = useState("");
+  const [typedDob, setTypedDob] = useState("");
+  const [nic, setNic] = useState("");
+  const [gender, setGender] = useState("");
   const [category, setCategory] = useState<JobCategory>(JOB_CATEGORIES[0].value);
   const [jobOther, setJobOther] = useState("");
 
+  // The NIC carries the date of birth (and male or female), so with one there is nothing to type.
+  // Only someone under 16, who has no card yet, enters the date themselves.
+  const fromNic = isValidNic(nic) ? nicBirthDate(nic) : null;
+  const dob = fromNic ?? typedDob;
   const age = /^\d{4}-\d{2}-\d{2}$/.test(dob) ? computeAge(`${dob}T00:00:00Z`) : null;
   const minor = isMinor(age);
   const nicRequired = isNicRequired(age);
+  const today = new Date();
+  const latestBirthday = `${today.getUTCFullYear() - MIN_MEMBER_AGE}${today.toISOString().slice(4, 10)}`;
+  const onNic = (value: string) => {
+    setNic(value);
+    const sex = nicGender(value);
+    if (sex && !gender) setGender(sex);
+  };
 
   if (done) return <Done title={t("success_title")} body={t("success_body")} />;
 
@@ -189,12 +218,24 @@ export function JoinForm({ fee }: { fee: FeeInfo }) {
         <Field label={t("full_name")}>
           <input name="fullName" required maxLength={120} autoComplete="name" className={inputClass} />
         </Field>
+        <Field label={t("nic")} note={t("nic_optional")} hint={t("nic_hint")}>
+          <input name="nic" required={nicRequired} pattern={NIC_PATTERN} maxLength={12} autoCapitalize="characters" spellCheck={false} value={nic} onChange={(e) => onNic(e.target.value)} className={inputClass} />
+        </Field>
         <div className="grid gap-5 sm:grid-cols-2">
-          <Field label={t("dob")}>
-            <input name="dateOfBirth" type="date" required max={new Date().toISOString().slice(0, 10)} value={dob} onChange={(e) => setDob(e.target.value)} className={inputClass} />
+          <Field label={t("dob")} hint={fromNic ? t("dob_from_nic") : undefined}>
+            <input
+              name="dateOfBirth"
+              type="date"
+              required
+              readOnly={!!fromNic}
+              max={latestBirthday}
+              value={dob}
+              onChange={(e) => setTypedDob(e.target.value)}
+              className={`${inputClass} read-only:cursor-default read-only:text-muted-foreground`}
+            />
           </Field>
           <Field label={t("gender")}>
-            <select name="gender" required defaultValue="" className={inputClass}>
+            <select name="gender" required value={gender} onChange={(e) => setGender(e.target.value)} className={inputClass}>
               <option value="" disabled>
                 {t("gender_select")}
               </option>
@@ -204,9 +245,6 @@ export function JoinForm({ fee }: { fee: FeeInfo }) {
             </select>
           </Field>
         </div>
-        <Field label={t("nic")} note={nicRequired ? undefined : t("nic_optional")} hint={t("nic_hint")}>
-          <input name="nic" required={nicRequired} pattern={NIC_PATTERN} maxLength={12} autoCapitalize="characters" spellCheck={false} className={inputClass} />
-        </Field>
         <Occupation category={category} onCategory={setCategory} other={jobOther} onOther={setJobOther} />
         <Field label={t("photo")} hint={t("photo_hint")}>
           <input name="photo" type="file" required accept="image/jpeg,image/png,image/webp" className={fileClass} />
@@ -275,7 +313,7 @@ export function JoinForm({ fee }: { fee: FeeInfo }) {
       {fee && <Payment fee={fee} category={category} />}
 
       <label className="flex items-start gap-3 text-[0.9375rem] leading-relaxed text-muted-foreground">
-        <input type="checkbox" name="consent" value="yes" required className="mt-1 h-5 w-5 shrink-0 accent-[var(--accent)]" />
+        <input type="checkbox" name="consent" value="yes" required className="mt-1 h-5 w-5 shrink-0 accent-accent" />
         <span>{t("consent")}</span>
       </label>
 

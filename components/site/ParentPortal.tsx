@@ -2,14 +2,26 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { AlertCircle, BellRing, CalendarCheck, Check, Loader2, LogOut, Megaphone, QrCode, UserPlus, X } from "lucide-react";
+import { AlertCircle, BellRing, CalendarCheck, Check, Loader2, LogOut, Megaphone, MonitorCheck, QrCode, UserPlus, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import ResultsView, { CurrentExam, type ResultsPayload } from "@/components/site/ResultsView";
 
 type Notice = { kind: "leave"; date: string; leaveCount: number } | { kind: "result"; date: string; name: string };
+type OnlinePaper = {
+  id: string;
+  title: string;
+  mode: "practice" | "exam";
+  opensAt: string | null;
+  closesAt: string | null;
+  durationMinutes: number;
+  status: "draft" | "scheduled" | "open" | "closed";
+  attempt: { finished: boolean; deadline: string } | null;
+  result: { score: number; max: number; toMark: number } | null;
+};
 type Child = ResultsPayload & {
   attendance: { marked: number; present: number; absent: number; percent: number | null; recent: { date: string; subject: string | null; time: string | null; present: boolean }[] };
   notices: Notice[];
+  online: OnlinePaper[];
 };
 type Me = { children: Child[]; announcements: { title: string; slug: string; excerpt: string | null; publishedAt: string | null }[] };
 
@@ -151,6 +163,61 @@ function SignIn({ onDone, onCancel }: { onDone: () => void; onCancel?: () => voi
   );
 }
 
+/**
+ * The child's online papers: an open one leads with Start (or Continue), a finished practice paper
+ * shows its score, an exam paper waits for the results. The paper itself is on its own page.
+ */
+function OnlineExams({ child }: { child: Child }) {
+  const t = useTranslations("Parents");
+  const locale = useLocale();
+  const at = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleString(locale === "ta" ? "ta-LK" : "en-GB", { timeZone: "Asia/Colombo", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
+  const href = (p: OnlinePaper) => `/${locale}/parents/exam/${p.id}?student=${encodeURIComponent(child.student.registrationNumber)}`;
+
+  return (
+    <section className="live-card p-6 md:p-8">
+      <h2 className="eyebrow flex items-center gap-2 text-accent">
+        <MonitorCheck size={16} aria-hidden /> {t("online_title")}
+      </h2>
+      <ul className="mt-4 divide-y divide-line">
+        {child.online.map((p) => {
+          const sitting = p.attempt && !p.attempt.finished;
+          return (
+            <li key={p.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-lg font-bold text-fg wrap-break-word">{p.title}</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {p.mode === "exam" ? t("online_exam") : t("online_practice")} · {t("online_minutes", { minutes: p.durationMinutes })} ·{" "}
+                  {p.status === "open" ? <span className="font-semibold text-ok">{t("online_open", { time: at(p.closesAt) })}</span> : p.status === "scheduled" ? t("online_opens", { time: at(p.opensAt) }) : t("online_closed")}
+                </p>
+                {p.attempt?.finished && (
+                  <p className="mt-1 text-[0.9375rem] font-semibold text-fg">
+                    {t("online_finished")}
+                    {p.result ? ` · ${t("online_score", { score: p.result.score, max: p.result.max })}` : p.mode === "exam" ? ` · ${t("online_exam_result")}` : ""}
+                    {p.result && p.result.toMark > 0 && <span className="block text-sm font-normal text-muted-foreground">{t("online_score_pending", { count: p.result.toMark })}</span>}
+                  </p>
+                )}
+              </div>
+              {p.attempt?.finished ? (
+                <Link href={href(p)} className="btn btn-ghost shrink-0 self-start sm:self-center">
+                  <span>{t("online_view")}</span>
+                </Link>
+              ) : sitting || p.status === "open" ? (
+                <Link href={href(p)} className="btn btn-brand shrink-0 self-start sm:self-center">
+                  <span>{sitting ? t("online_continue") : t("online_start")}</span>
+                </Link>
+              ) : p.status === "closed" ? (
+                <span className="shrink-0 text-sm font-semibold text-muted-foreground">{t("online_missed")}</span>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-2 text-sm text-muted-foreground">{t("online_note")}</p>
+    </section>
+  );
+}
+
 function ChildPanel({ child }: { child: Child }) {
   const t = useTranslations("Parents");
   const { attendance } = child;
@@ -159,6 +226,9 @@ function ChildPanel({ child }: { child: Child }) {
 
   return (
     <div className="flex flex-col gap-8">
+      {/* An exam open right now comes first: it is the one thing on this page with a clock on it. */}
+      {child.online.some((p) => p.status === "open" && !p.attempt?.finished) && <OnlineExams child={child} />}
+
       {/* The rank in the latest exam leads: it is what a parent opens the page for after results come out. */}
       <CurrentExam results={child.results} />
 
@@ -212,6 +282,8 @@ function ChildPanel({ child }: { child: Child }) {
           )}
         </section>
       </div>
+
+      {child.online.length > 0 && !child.online.some((p) => p.status === "open" && !p.attempt?.finished) && <OnlineExams child={child} />}
 
       <section>
         <h2 className="eyebrow mb-4 text-accent">{t("results_title")}</h2>

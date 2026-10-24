@@ -34,4 +34,7 @@ export const AlertsScreen = dynamic(() => import("./alerts"), { ssr: false, load
 export const ExamsScreen = dynamic(() => import("./exams"), { ssr: false, loading });
 export const TestDetailScreen = dynamic(() => import("./test-detail"), { ssr: false, loading });
 export const ExamDetailScreen = dynamic(() => import("./exam-detail"), { ssr: false, loading });
+export const OnlinePapersScreen = dynamic(() => import("./online-papers"), { ssr: false, loading });
+export const OnlinePaperScreen = dynamic(() => import("./online-paper"), { ssr: false, loading });
+export const OnlineResultsScreen = dynamic(() => import("./online-results"), { ssr: false, loading });
 export const AnalysisScreen = dynamic(() => import("./analysis"), { ssr: false, loading });

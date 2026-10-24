@@ -26,3 +26,15 @@ export function getLocalMonth(at: Date | number = Date.now()) {
 }
 
 export const TIME_ZONE = "Asia/Colombo";
+
+/** A moment as a `datetime-local` value in Sri Lanka time ("2026-10-25T09:00"), whatever zone the browser is in. */
+export function toColomboInput(at: Date | string | number | null | undefined) {
+  if (at === null || at === undefined) return "";
+  return new Date(new Date(at).getTime() + OFFSET_MS).toISOString().slice(0, 16);
+}
+
+/** A `datetime-local` value read as Sri Lanka time. Empty or unreadable gives null. */
+export function fromColomboInput(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return null;
+  return new Date(Date.parse(`${value}:00Z`) - OFFSET_MS);
+}

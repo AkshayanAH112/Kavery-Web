@@ -44,6 +44,7 @@ export const CONSOLE_GROUPS: ConsoleGroup[] = [
       { key: "attendance", href: "/console/attendance", label: "Attendance report", icon: "report", permission: "education.manage", ready: true },
       { key: "alerts", href: "/console/alerts", label: "Leave alerts", icon: "alert", permission: "education.manage", ready: true },
       { key: "exams", href: "/console/exams", label: "Exams and marks", short: "Exams", icon: "marks", permission: "education.manage", ready: true },
+      { key: "online", href: "/console/online", label: "Online exams", short: "Online", icon: "online", permission: "education.manage", ready: true },
       { key: "analysis", href: "/console/analysis", label: "Analysis", icon: "analysis", permission: "education.manage", ready: true },
     ],
   },

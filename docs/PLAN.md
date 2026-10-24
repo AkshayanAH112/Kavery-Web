@@ -193,6 +193,27 @@ cycles, role boundaries, deletion guards) on the dev server.
 Checked by a second scripted run (37 assertions) and, together with the cricket and attendance
 suites, against the production Worker in the local Workers runtime: all three pass there.
 
+**Built ✅** — online exams (added 2026-10-22):
+
+- Students sit papers on the parent page — at home on a parent's phone, or in class on a tablet after
+  scanning their card. About 100 students at once is well within D1 and the Worker's free limits.
+- Questions are multiple choice (up to six answers, each with optional text and picture) or a short
+  written answer, with a picture on any question. Staff type them with Bamini keys like every other
+  KEDA text. Pictures are private until a child has started the paper.
+- Two kinds of paper. **Practice**: the child sees their score when they hand in, and the answers once
+  it closes. **Exam**: set up from Part 1 or Part 2 of a test; when it closes and short answers are
+  marked, "Copy scores" writes them into that part's marks (optionally marking non-starters absent,
+  never over a mark entered by hand), and the test is then published as usual.
+- Opening and closing times, a time allowed per student counted on the server, answers saved one by
+  one as they are given (and retried on a weak connection), automatic hand-in at the deadline, order
+  mixed per student, extra time or a fresh start for one student, and marking of short answers
+  grouped so one decision marks every identical answer.
+- Checked by two scripted runs (86 and 6 assertions) on the dev server: the whole practice and exam
+  flow, the key never reaching a student early, locked questions, re-marking on a corrected key,
+  extra time, copying to a test, deleting a test, and a sitting ending by itself at its deadline.
+- Not yet tried by hand in a browser or on a phone. Someone cannot be stopped from helping a child at
+  home: an exam that counts for rank is best sat in class.
+
 **Built ✅** — import and promotion:
 
 - Importing a class list from Excel: the names are converted from the Bamini font encoding to real

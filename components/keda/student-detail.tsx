@@ -7,6 +7,7 @@ import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Ba
 import { Loader2, ArrowLeft, AlertTriangle, GraduationCap, QrCode as QrIcon, Pencil, Trash2, X } from "lucide-react";
 import { StudentIdCardModal } from "@/components/keda/student-id-card-modal";
 import { shrinkImage } from "@/lib/upload-client";
+import { PhotoSource } from "@/components/console/photo-editor";
 import { Modal, ConfirmDialog, AlertModal } from "@/components/console/confirm-dialog";
 import { useCurrentUser } from "@/components/console/current-user";
 import { isValidPhoneLocal, PHONE_HINT } from "@/lib/phone";
@@ -135,15 +136,14 @@ export default function StudentProfilePage() {
                 <span className="text-3xl font-bold text-primary">{student.name.charAt(0)}</span>
               )}
             </div>
-            {/* The photo is printed on the ID card. */}
-            <div className="mb-4 flex items-center gap-3 text-sm">
-              <label className={`cursor-pointer font-semibold text-primary underline underline-offset-4 ${photoBusy ? "pointer-events-none opacity-60" : ""}`}>
-                {photoBusy ? "Uploading…" : student.photoUrl ? "Change photo" : "Add photo"}
-                <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={photoBusy} onChange={(e) => { uploadPhoto(e.target.files?.[0]); e.target.value = ""; }} />
-              </label>
-              {student.photoUrl && !photoBusy && (
+            {/* The photo is printed on the ID card, so it is cropped to the card's frame. */}
+            <div className="mb-4 flex flex-col items-center gap-2 text-sm">
+              <PhotoSource onPhoto={uploadPhoto} busy={photoBusy} uploadLabel={student.photoUrl ? "Change" : "Upload"} className="justify-center" />
+              {photoBusy ? (
+                <span className="inline-flex items-center gap-1.5 text-muted-foreground"><Loader2 className="animate-spin" size={14} aria-hidden /> Uploading…</span>
+              ) : student.photoUrl && (
                 <button type="button" onClick={removePhoto} className="cursor-pointer text-muted-foreground underline underline-offset-4 hover:text-destructive">
-                  Remove
+                  Remove photo
                 </button>
               )}
             </div>
@@ -482,7 +482,7 @@ function EditStudentModal({ student, onClose, onSaved }: { student: any; onClose
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-3xl border border-border bg-card p-6 shadow-2xl sm:p-8" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-h-[calc(100dvh-2rem)] overflow-y-auto max-w-lg rounded-3xl border border-border bg-card p-6 shadow-2xl sm:p-8" onClick={(e) => e.stopPropagation()}>
         <div className="mb-6 flex items-start justify-between">
           <h2 className="text-xl font-bold text-foreground">Edit Student</h2>
           <button onClick={onClose} className="cursor-pointer text-muted-foreground hover:text-foreground"><X size={20} /></button>

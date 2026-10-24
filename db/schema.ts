@@ -216,6 +216,96 @@ export const marks = sqliteTable(
   (t) => [uniqueIndex("marks_exam_student_uq").on(t.examId, t.studentId), index("marks_student_idx").on(t.studentId)],
 );
 
+/**
+ * A paper students sit online, on the parent page. "practice" stands alone and its score is the
+ * student's own; "exam" is set for one paper of a test (`examId`), and its scores are copied into
+ * that paper's marks by staff — from there it is ranked and published like any other test.
+ */
+export const onlinePapers = sqliteTable(
+  "online_papers",
+  {
+    id: id(),
+    title: text("title").notNull(),
+    /** "practice" | "exam" */
+    mode: text("mode").notNull().default("practice"),
+    batchId: text("batch_id").notNull().references(() => batches.id, { onDelete: "cascade" }),
+    grade: integer("grade").notNull(),
+    examId: text("exam_id").references(() => exams.id, { onDelete: "cascade" }),
+    instructions: text("instructions"),
+    opensAt: ts("opens_at"),
+    closesAt: ts("closes_at"),
+    durationMinutes: integer("duration_minutes").notNull().default(60),
+    /** Questions, and the options of each, in a different order for every student. */
+    shuffle: bool("shuffle").notNull().default(true),
+    /** Students see the paper only once staff mark it ready. Default false. */
+    isReady: bool("is_ready").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("online_papers_exam_uq").on(t.examId), index("online_papers_batch_idx").on(t.batchId, t.grade)],
+);
+
+export type OnlineOption = { id: string; text: string; image: string | null };
+
+/** Images are private R2 keys (`papers/…`), served only through the online-paper routes. */
+export const onlineQuestions = sqliteTable(
+  "online_questions",
+  {
+    id: id(),
+    paperId: text("paper_id").notNull().references(() => onlinePapers.id, { onDelete: "cascade" }),
+    position: integer("position").notNull().default(0),
+    /** "choice" | "short" */
+    kind: text("kind").notNull().default("choice"),
+    prompt: text("prompt").notNull().default(""),
+    image: text("image"),
+    options: json<OnlineOption[]>("options").notNull().default(sql`'[]'`),
+    /** A choice question's correct option id. */
+    answer: text("answer"),
+    /** A short answer that matches one of these gets full marks without waiting for staff. */
+    accepted: json<string[]>("accepted").notNull().default(sql`'[]'`),
+    marks: real("marks").notNull().default(1),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("online_questions_paper_idx").on(t.paperId, t.position)],
+);
+
+/** One student's sitting. Finished once submitted or once the deadline has passed — nothing has to close it. */
+export const onlineAttempts = sqliteTable(
+  "online_attempts",
+  {
+    id: id(),
+    paperId: text("paper_id").notNull().references(() => onlinePapers.id, { onDelete: "cascade" }),
+    studentId: text("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
+    startedAt: ts("started_at").notNull(),
+    deadline: ts("deadline").notNull(),
+    submittedAt: ts("submitted_at"),
+    /** The order this student sees: question ids, and each question's option ids. */
+    order: json<{ questions: string[]; options: Record<string, string[]> }>("order").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("online_attempts_paper_student_uq").on(t.paperId, t.studentId), index("online_attempts_student_idx").on(t.studentId)],
+);
+
+/**
+ * A choice answer is scored from the question's key when it is read, so correcting the key re-marks
+ * everyone. `awarded` is only ever a staff mark on a short answer; null means not marked by hand.
+ */
+export const onlineAnswers = sqliteTable(
+  "online_answers",
+  {
+    id: id(),
+    attemptId: text("attempt_id").notNull().references(() => onlineAttempts.id, { onDelete: "cascade" }),
+    questionId: text("question_id").notNull().references(() => onlineQuestions.id, { onDelete: "cascade" }),
+    choice: text("choice"),
+    response: text("response"),
+    awarded: real("awarded"),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("online_answers_attempt_question_uq").on(t.attemptId, t.questionId)],
+);
+
 /* --------------------------------------------------------- club membership */
 
 export const members = sqliteTable(

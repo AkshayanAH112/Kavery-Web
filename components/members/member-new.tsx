@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Loader2 } from "lucide-react";
-import { GENDERS, JOB_CATEGORIES, MEMBER_INTERESTS, MEMBER_TYPES, type MembershipSettings } from "@/lib/membership/rules";
+import { GENDERS, JOB_CATEGORIES, MEMBER_INTERESTS, MEMBER_TYPES, OCCUPATIONS, type MembershipSettings } from "@/lib/membership/rules";
 import { shrinkImage } from "@/lib/upload-client";
 
 /**
@@ -15,6 +15,7 @@ export default function NewMemberPage() {
   const router = useRouter();
   const [settings, setSettings] = useState<MembershipSettings | null>(null);
   const [jobCategory, setJobCategory] = useState("");
+  const [occupation, setOccupation] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,6 +79,7 @@ export default function NewMemberPage() {
         <div>
           <label htmlFor="dob" className="field-label">Date of birth</label>
           <input id="dob" name="dateOfBirth" type="date" max={new Date().toISOString().slice(0, 10)} className="field" />
+          <p className="mt-1.5 text-sm text-muted-foreground">Left empty, it is read from the NIC number.</p>
         </div>
         <div>
           <label htmlFor="gender" className="field-label">Gender</label>
@@ -139,6 +141,21 @@ export default function NewMemberPage() {
           </select>
         </div>
         {jobCategory === "other" && (
+          <div>
+            <label htmlFor="occupation" className="field-label">Work</label>
+            <select id="occupation" name="occupation" required value={occupation} onChange={(e) => setOccupation(e.target.value)} className="field">
+              <option value="" disabled>
+                Choose
+              </option>
+              {OCCUPATIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {jobCategory === "other" && occupation === "other" && (
           <div>
             <label htmlFor="jobOther" className="field-label">Which occupation?</label>
             <input id="jobOther" name="jobOther" required maxLength={80} className="field" />

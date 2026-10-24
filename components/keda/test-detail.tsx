@@ -4,11 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import * as XLSX from "xlsx";
-import { ArrowLeft, FileSpreadsheet, Globe, Loader2, Lock, PenLine, Pencil, Search, Trash2, Trophy, X } from "lucide-react";
+import { ArrowLeft, FileSpreadsheet, Globe, Loader2, Lock, MonitorCheck, PenLine, Pencil, Search, Trash2, Trophy, X } from "lucide-react";
 import { AlertModal, ConfirmDialog } from "@/components/console/confirm-dialog";
 import { searchText } from "@/lib/keda/bamini";
 
-type Paper = { _id: string; part: number | null; label: string; examDate: string; maxMarks: number; rosterCount: number; recorded: number };
+type Paper = { _id: string; part: number | null; label: string; examDate: string; maxMarks: number; rosterCount: number; recorded: number; online: { _id: string; status: string } | null };
 type Part = { examId: string; part: number | null; maxMarks: number; status: "sat" | "absent" | "missing"; marks: number | null; expected: boolean };
 type Row = { student: { _id: string; name: string; registrationNumber?: string; school: string | null }; parts: Part[]; total: number | null; percent: number | null; rank: number | null; absent: boolean };
 type Data = {
@@ -83,6 +83,15 @@ export default function TestDetailPage() {
     } finally {
       setPublishing(false);
     }
+  };
+
+  // The online paper for a part: opened if there is one, set up (empty, as a draft) if not.
+  const openOnline = async (paper: Paper) => {
+    if (paper.online) return router.push(`/console/online/${paper.online._id}`);
+    const res = await fetch("/api/online-papers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ examId: paper._id }) });
+    const data = (await res.json()) as { paper?: { _id: string }; error?: string };
+    if (res.ok && data.paper) router.push(`/console/online/${data.paper._id}`);
+    else setError(data.error ?? "Could not set up the online paper");
   };
 
   const handleDelete = async () => {
@@ -179,9 +188,14 @@ export default function TestDetailPage() {
                   {p.recorded}/{p.rosterCount} entered
                 </p>
               </div>
-              <Link href={`/console/exams/paper/${p._id}`} className="flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
-                <PenLine size={16} aria-hidden /> Enter marks
-              </Link>
+              <div className="flex shrink-0 flex-col gap-2">
+                <Link href={`/console/exams/paper/${p._id}`} className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
+                  <PenLine size={16} aria-hidden /> Enter marks
+                </Link>
+                <button onClick={() => openOnline(p)} className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border px-4 py-2 font-semibold text-foreground transition-colors hover:bg-muted">
+                  <MonitorCheck size={16} aria-hidden /> {p.online ? "Online paper" : "Set up online"}
+                </button>
+              </div>
             </div>
           );
         })}
@@ -291,7 +305,7 @@ export default function TestDetailPage() {
         onClose={() => setConfirmDeleteOpen(false)}
         onConfirm={handleDelete}
         title="Delete this test?"
-        description={`This deletes ${twoParts ? "both parts and" : ""} every mark entered for it (${papers.reduce((n, p) => n + p.recorded, 0)}). This cannot be undone.`}
+        description={`This deletes ${twoParts ? "both parts and" : ""} every mark entered for it (${papers.reduce((n, p) => n + p.recorded, 0)})${papers.some((p) => p.online) ? ", and its online paper with every answer students gave" : ""}. This cannot be undone.`}
         confirmLabel="Delete"
         tone="danger"
       />

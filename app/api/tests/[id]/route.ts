@@ -2,11 +2,13 @@ import { and, eq, inArray } from "drizzle-orm";
 import { authorize } from "@/lib/auth/guard";
 import { getDb, schema } from "@/lib/db";
 import { getTest, paperRoster, papersOf, parseTestEdit, testDoc } from "@/lib/keda/exams";
+import { deleteOnlinePapers } from "@/lib/keda/online";
+import { paperStatus } from "@/lib/keda/online-rules";
 import { getBatch, readBody, sortByIndexNumber, studentDoc, type StudentRow } from "@/lib/keda/server";
 import { byPart, combineTest, paperLabel, round1 } from "@/lib/keda/test-results";
 import { pushInBackground } from "@/lib/push";
 
-const { tests: T, exams: E, marks: M } = schema;
+const { tests: T, exams: E, marks: M, onlinePapers: OP } = schema;
 const NOT_FOUND = () => Response.json({ error: "Test not found" }, { status: 404 });
 
 async function load(id: unknown) {
@@ -42,10 +44,22 @@ export async function GET(_request: Request, { params }: RouteContext<"/api/test
   const { standings, ranked, classAverage, maxTotal } = combineTest(papers, marks, students.keys());
   const onRoster = rosters.map((r) => new Set(r.students.map((s) => s.id)));
 
-  const batch = await getBatch(test.batchId);
+  const [batch, online] = await Promise.all([getBatch(test.batchId), papers.length ? getDb().select().from(OP).where(inArray(OP.examId, papers.map((p) => p.id))) : []]);
   return Response.json({
     test: testDoc(test, papers, batch),
-    papers: papers.map((p, i) => ({ _id: p.id, part: p.part, label: paperLabel(p), examDate: p.examDate.toISOString(), maxMarks: p.maxMarks, rosterCount: rosters[i].students.length, recorded: rosters[i].marks.length })),
+    papers: papers.map((p, i) => {
+      const paper = online.find((o) => o.examId === p.id);
+      return {
+        _id: p.id,
+        part: p.part,
+        label: paperLabel(p),
+        examDate: p.examDate.toISOString(),
+        maxMarks: p.maxMarks,
+        rosterCount: rosters[i].students.length,
+        recorded: rosters[i].marks.length,
+        online: paper ? { _id: paper.id, status: paperStatus(paper) } : null,
+      };
+    }),
     rows: sortByIndexNumber([...students.values()]).map((s) => {
       const standing = standings.get(s.id)!;
       return {
@@ -115,7 +129,7 @@ export async function PATCH(request: Request, { params }: RouteContext<"/api/tes
   return Response.json({ test: testDoc(updated, await papersOf([test.id])) });
 }
 
-/** Deletes the test, its papers and every mark on them. */
+/** Deletes the test, its papers, every mark on them, and any online paper set for them. */
 export async function DELETE(_request: Request, { params }: RouteContext<"/api/tests/[id]">) {
   const auth = await authorize("education.manage");
   if (!auth.ok) return auth.response;
@@ -123,6 +137,7 @@ export async function DELETE(_request: Request, { params }: RouteContext<"/api/t
   if (!test) return NOT_FOUND();
   const db = getDb();
   const paperIds = (await papersOf([test.id])).map((p) => p.id);
+  if (paperIds.length) await deleteOnlinePapers((await db.select({ id: OP.id }).from(OP).where(inArray(OP.examId, paperIds))).map((p) => p.id));
   await db.batch([db.delete(M).where(inArray(M.examId, paperIds.length ? paperIds : [""])), db.delete(E).where(eq(E.testId, test.id)), db.delete(T).where(eq(T.id, test.id))]);
   return Response.json({ success: true });
 }

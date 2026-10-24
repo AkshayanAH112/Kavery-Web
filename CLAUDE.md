@@ -112,6 +112,25 @@ database page returning 500 until it is restarted.
   `Test.isPublished` (default false) is the gate for anything public, and the API refuses it until
   every part's roster has a mark or an absence. `exams.test_id` is nullable in SQL only because SQLite
   cannot add a NOT NULL foreign key to a filled table — rebuilding `exams` would cascade-delete marks.
+- **Online exams** (`lib/keda/online*.ts`, `components/keda/online-*.tsx`, `/api/online-papers`,
+  `/api/public/online`, the exam page `/[locale]/parents/exam/[id]?student=<index number>`):
+  - A **practice** paper stands alone; its score is the child's own, shown when they hand in. An
+    **exam** paper belongs to one paper of a test (`online_papers.exam_id`); its scores reach the test
+    only when staff press "Copy scores" (`send-marks`) after it closes, and from there it is ranked and
+    published like any test. The questions' marks must add up to that paper's maximum.
+  - A child sits it from the parent page: the student is one of the children in the `ksc_parent`
+    cookie, checked by `childPaper()` in `lib/keda/online-access.ts` on every request.
+  - **The answer key never leaves the server until the paper may be reviewed** (`isReviewable()`):
+    a practice paper once it has closed, an exam paper once its test is published. Questions are not
+    sent before the child starts, and pictures (`papers/` in R2, private) only to a child who has.
+  - Scores are derived, never stored: `questionScore()` in `lib/keda/online-rules.ts` (shared with the
+    browser). A choice is scored from the current key, so a corrected key re-marks everyone;
+    `online_answers.awarded` is only a staff mark on a short answer. A short answer matching an
+    accepted one is full marks; anything else waits for staff (null), never 0 by a string compare.
+  - A sitting is over when handed in or `GRACE_MS` past its deadline — nothing runs at the deadline.
+    The deadline is fixed at start: `min(start + time allowed, closing time)`. "+10 min" moves it.
+  - Once anyone has started, questions keep their shape (no adding, removing, re-marking, changing
+    the set of options); wording, pictures and the key can still be fixed.
 - **Student import** (`/console/students/import`): the sheet is read in the browser, converted from
   the Bamini font encoding by `lib/keda/bamini.ts`, previewed and edited, and only then posted to
   `/api/students/import`. Only the index number and the name beside it are read; an index number
@@ -188,13 +207,20 @@ database page returning 500 until it is restarted.
   batch name over `public/brand/keda-id-card-template.png`. The three values share one size (the
   largest at which all fit) and one spacing, centred beside the photo frame; a long name wraps to a
   second line at that size rather than shrinking alone. The batch name, not the grade, is printed,
-  because the card is printed once and the student moves up in January.
+  because the card is printed once and the student moves up in January. The finished card is shown as
+  an `<img>` from a blob, not a canvas, so a phone can long-press it; on phones the save button opens
+  the share sheet, because a download link does nothing in an installed iPhone app and `window.print()`
+  is ignored there (Print is hidden when `navigator.standalone`). A web font or photo that never
+  loads must not stop the card: both are raced against a timeout.
 - **Student photos** are for the ID card and are private, like members' files (`lib/private-files.ts`):
   stored under `students/` in R2, added or replaced on the student's page
   (`POST /api/students/[id]/photo`), and read back only through `GET /api/students/[id]/photo` by
   staff who work with the classes. The Register Student form can take one too: it creates the
   student first and then posts the photo to that same route, so a failed upload leaves a registered
-  student without a photo rather than no student. A photo address sent by a client is never stored, and the parent
+  student without a photo rather than no student. Both places pick the photo through `PhotoSource`
+  (`components/console/photo-editor.tsx`): Upload or Camera, then a cropper fixed to the card's
+  210 × 276 frame (drag, pinch/scroll/slider zoom, turn), saved at 630 px wide. On phones Camera is
+  the phone's own camera app (`capture`); elsewhere it is a live camera in the page. A photo address sent by a client is never stored, and the parent
   page never includes the photo.
 - **Site details** (`lib/site-settings.ts`, `/api/site-settings`, console → Site details): contact
   lines, the About page's text in both languages, class times, office bearers, and contact people

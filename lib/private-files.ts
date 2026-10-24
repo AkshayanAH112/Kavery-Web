@@ -7,7 +7,8 @@
  */
 import { getEnv } from "@/lib/db";
 
-export const PRIVATE_FOLDERS = { photo: "members", slip: "payments", student: "students" } as const;
+// `paper`: pictures in online exam questions, private until a student has started that paper.
+export const PRIVATE_FOLDERS = { photo: "members", slip: "payments", student: "students", paper: "papers" } as const;
 export const MAX_FILE_BYTES = 4 * 1024 * 1024;
 
 const EXTENSIONS: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" };

@@ -44,14 +44,18 @@ export function BaminiToggle({ on, onChange, className = "" }: { on: boolean; on
   );
 }
 
-type Props = Omit<React.ComponentProps<"input">, "value" | "onChange" | "type"> & {
+type Props = Omit<React.ComponentProps<"input">, "value" | "onChange" | "type" | "ref"> & {
   value: string;
   onValueChange: (value: string) => void;
   bamini: boolean;
+  /** A text area rather than one line (a question in an online paper). Line breaks are kept. */
+  multiline?: boolean;
+  rows?: number;
 };
 
-export function BaminiInput({ value, onValueChange, bamini, onBlur, ...rest }: Props) {
-  const input = useRef<HTMLInputElement>(null);
+export function BaminiInput({ value, onValueChange, bamini, onBlur, multiline = false, rows = 3, ...rest }: Props) {
+  // Typed as both: a text area and a text box have the same value and caret API, which is all this uses.
+  const input = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
   const run = useRef<BaminiRun | null>(null);
   const caret = useRef<number | null>(null);
 
@@ -93,16 +97,18 @@ export function BaminiInput({ value, onValueChange, bamini, onBlur, ...rest }: P
     return () => el.removeEventListener("beforeinput", onBeforeInput);
   });
 
+  const Box = multiline ? "textarea" : "input";
   return (
-    <input
-      {...rest}
+    <Box
+      {...(rest as React.ComponentProps<"input"> & React.ComponentProps<"textarea">)}
       ref={input}
-      type="text"
+      {...(multiline ? { rows } : { type: "text" })}
       lang={bamini ? "ta" : undefined}
       value={value}
-      onChange={(e) => onValueChange(e.target.value)}
-      onPaste={(e) => {
-        const text = e.clipboardData.getData("text/plain").replace(/\s*[\r\n]+\s*/g, " ");
+      onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onValueChange(e.target.value)}
+      onPaste={(e: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const raw = e.clipboardData.getData("text/plain");
+        const text = multiline ? raw.replace(/\r\n?/g, "\n") : raw.replace(/\s*[\r\n]+\s*/g, " ");
         // Text that is already Tamil goes in as it is: converting it would turn its commas into இ.
         if (!bamini || !text || /[஀-௿]/.test(text)) return;
         e.preventDefault();
@@ -110,7 +116,7 @@ export function BaminiInput({ value, onValueChange, bamini, onBlur, ...rest }: P
         const start = el.selectionStart ?? el.value.length;
         apply(typeBamini(el.value, start, el.selectionEnd ?? start, text, null));
       }}
-      onBlur={(e) => {
+      onBlur={(e: React.FocusEvent<HTMLInputElement & HTMLTextAreaElement>) => {
         // Keys that were not caught one by one (a phone keyboard composing words, autofill) are converted on leaving the box.
         if (bamini && looksLikeBamini(value)) onValueChange(baminiToUnicode(value));
         onBlur?.(e);

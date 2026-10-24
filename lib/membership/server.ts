@@ -18,12 +18,16 @@ import {
   isJobCategory,
   isMinor,
   isNicRequired,
+  isOccupation,
   isValidNic,
   isValidPhone,
   jobLabel,
+  MIN_MEMBER_AGE,
+  nicBirthDate,
   normalizeMembershipSettings,
   normalizeNic,
   normalizePhone,
+  OCCUPATIONS,
   PHONE_ERROR,
   type JobCategory,
   type MembershipSettings,
@@ -165,8 +169,13 @@ export function occupationFields(form: FormData, settings: MembershipSettings): 
   const jobCategory = field(form, "jobCategory", 40);
   if (!isJobCategory(jobCategory)) return { ok: false, error: "Choose an occupation." };
   const jobOther = field(form, "jobOther", 80);
-  if (jobCategory === "other" && !jobOther) return { ok: false, error: "Describe your occupation." };
-  return { ok: true, job: jobCategory === "other" ? jobOther : jobLabel(jobCategory), jobCategory, annualFee: feeFor(settings, jobCategory) };
+  const annualFee = feeFor(settings, jobCategory);
+  if (jobCategory !== "other") return { ok: true, job: jobLabel(jobCategory), jobCategory, annualFee };
+  // Working: an occupation from the list, or typed in. A form from before the list sends only the typed one.
+  const occupation = field(form, "occupation", 40);
+  if (isOccupation(occupation) && occupation !== "other") return { ok: true, job: OCCUPATIONS.find((o) => o.value === occupation)!.label, jobCategory, annualFee };
+  if (!jobOther) return { ok: false, error: occupation ? "Describe your occupation." : "Choose your occupation." };
+  return { ok: true, job: jobOther, jobCategory, annualFee };
 }
 
 type Details = Pick<MemberInsert, "fullName" | "dateOfBirth" | "gender" | "phone" | "whatsapp" | "email" | "address" | "nic" | "guardianName" | "guardianPhone" | "memberType" | "interest" | "previousClub" | "message">;
@@ -189,15 +198,20 @@ export function memberDetails(form: FormData, strict: boolean): { ok: true; deta
   const guardianPhoneRaw = field(form, "guardianPhone", 30);
   if (guardianPhoneRaw && !isValidPhone(guardianPhoneRaw)) return fail("Enter the guardian's phone number in digits, for example 0771234567.");
 
-  const dateOfBirth = parseDateOfBirth(field(form, "dateOfBirth", 10));
+  const nic = normalizeNic(field(form, "nic", 30));
+  // The NIC carries the date of birth: it fills a date left out, and a date that disagrees is a typing slip.
+  const fromNic = isValidNic(nic) ? nicBirthDate(nic) : null;
+  const typed = field(form, "dateOfBirth", 10);
+  const dateOfBirth = parseDateOfBirth(typed || fromNic || "");
   if (dateOfBirth === "invalid") return fail("Enter a date of birth in the past.");
   if (strict && !dateOfBirth) return fail("Enter the date of birth.");
+  if (fromNic && typed && typed !== fromNic) return fail(`The date of birth does not match the NIC number, which gives ${fromNic}. Check both.`);
   const age = dateOfBirth ? computeAge(dateOfBirth) : null;
+  if (age !== null && age < MIN_MEMBER_AGE) return fail(`Check the date of birth: it makes the member ${age} years old.`);
 
   const email = field(form, "email", 254);
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail("Enter a valid email address, or leave it empty.");
 
-  const nic = normalizeNic(field(form, "nic", 30));
   const guardianName = field(form, "guardianName", 120);
   const address = field(form, "address", 300);
   if (strict) {

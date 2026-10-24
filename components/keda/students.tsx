@@ -10,6 +10,7 @@ import { Modal, ConfirmDialog, AlertModal } from "@/components/console/confirm-d
 import { useCurrentUser } from "@/components/console/current-user";
 import { isValidPhoneLocal, PHONE_HINT } from "@/lib/phone";
 import { shrinkImage } from "@/lib/upload-client";
+import { PhotoSource } from "@/components/console/photo-editor";
 import { BaminiInput, BaminiToggle, useBaminiTyping } from "@/components/keda/bamini-input";
 import { ChoiceInput, useStudentChoices } from "@/components/keda/choice-input";
 import { searchText } from "@/lib/keda/bamini";
@@ -404,29 +405,26 @@ function StudentsPageContent() {
           <div className="bg-card rounded-3xl max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto p-6 sm:p-8 border border-border shadow-2xl">
             <h3 className="text-xl font-bold text-foreground mb-6">Register New Student</h3>
             <form onSubmit={handleCreate} className="space-y-4">
-              {/* The photo is printed on the ID card. */}
+              {/* The photo is printed on the ID card, so it is cropped to the card's frame. */}
               <div className="flex items-center gap-4">
-                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
+                <div className="flex aspect-[210/276] w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
                   {photoPreview ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- a local preview of the chosen file
+                    // eslint-disable-next-line @next/next/no-img-element -- a local preview of the cropped photo
                     <img src={photoPreview} alt="Student photo preview" className="h-full w-full object-cover" />
                   ) : (
                     <span className="text-2xl font-bold text-primary">{formData.name.trim().charAt(0)}</span>
                   )}
                 </div>
-                <div className="text-sm">
-                  <div className="flex items-center gap-3">
-                    <label className="cursor-pointer font-semibold text-primary underline underline-offset-4">
-                      {photo ? "Change photo" : "Add photo"}
-                      <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { if (e.target.files?.[0]) pickPhoto(e.target.files[0]); e.target.value = ""; }} />
-                    </label>
+                <div className="min-w-0 text-sm">
+                  <PhotoSource onPhoto={pickPhoto} uploadLabel={photo ? "Change" : "Upload"} />
+                  <p className="mt-1.5 text-muted-foreground">
+                    Printed on the ID card. It can be added later.
                     {photo && (
-                      <button type="button" onClick={() => pickPhoto(null)} className="cursor-pointer text-muted-foreground underline underline-offset-4 hover:text-destructive">
+                      <button type="button" onClick={() => pickPhoto(null)} className="ml-2 cursor-pointer underline underline-offset-4 hover:text-destructive">
                         Remove
                       </button>
                     )}
-                  </div>
-                  <p className="mt-1 text-muted-foreground">Printed on the ID card. It can be added later.</p>
+                  </p>
                 </div>
               </div>
               <BaminiToggle on={bamini} onChange={setBamini} />
@@ -482,7 +480,7 @@ function StudentsPageContent() {
           student never has to be blocked on leaving to /console/batches first. */}
       {isNewBatchModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border p-6 sm:p-8 rounded-3xl max-w-sm w-full shadow-2xl">
+          <div className="bg-card border border-border p-6 sm:p-8 rounded-3xl max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto shadow-2xl">
             <h2 className="text-xl font-bold mb-6 text-foreground">New Batch</h2>
             <form onSubmit={createBatchInline} className="space-y-4">
               <div>
