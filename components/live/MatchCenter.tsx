@@ -5,9 +5,12 @@ import Link from "next/link";
 import { Award } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import type { BatterLine } from "@/lib/cricket/engine";
+import { colourOnInk, LOWER_IS_BETTER, STAT_ROWS, teamStats, topBatters, topBowlers, type Performer, type StatKey } from "@/lib/cricket/match-stats";
 import type { MatchView, TeamBrief } from "@/lib/cricket/view";
 import { cn } from "@/lib/utils";
-import { BallChip, EmptyNote, PollStatus, SectionTitle, StatusPill, Tabs, TeamLogo, formatMatchDate, usePolling, useResultText } from "./shared";
+import { MatchImageDialog } from "./MatchImageDialog";
+import type { ImageLabels } from "./summary-image";
+import { BallChip, EmptyNote, PollStatus, SectionTitle, StatusPill, Tabs, TeamLogo, formatDay, formatMatchDate, usePolling, useResultText } from "./shared";
 
 type Innings = MatchView["innings"][number];
 type Tab = "live" | "scorecard" | "overs" | "squads";
@@ -151,10 +154,137 @@ export default function MatchCenter({ id }: { id: string }) {
   );
 
   const stat = (label: string, value: React.ReactNode) => (
-    <div className="rounded-xl bg-surface-2/60 px-3 py-2.5 text-center">
+    <div className="glass px-3 py-2.5 text-center">
       <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
       <p className="mt-0.5 font-bold tabular-nums text-fg">{value}</p>
     </div>
+  );
+
+  const statLabels: Record<StatKey, string> = {
+    runs: t("runs"),
+    runRate: t("crr"),
+    fours: t("fours"),
+    sixes: t("sixes"),
+    wicketsTaken: t("stat_wickets_taken"),
+    dotBalls: t("dot_balls"),
+    extrasConceded: t("stat_extras_conceded"),
+    bestStand: t("stat_best_stand"),
+  };
+
+  // Team against team, figure by figure. Each side's bar grows from the middle
+  // in proportion to the larger figure; the better side's bar is at full strength.
+  const statsPanel = () => {
+    const sides = [match.teamA, match.teamB] as const;
+    const [a, b] = sides.map((side) => teamStats(match, side.id));
+    const colours = [colourOnInk(match.teamA.color, "var(--red-500)"), colourOnInk(match.teamB.color, "var(--yellow-400)")];
+    return (
+      <section className="glass p-4 md:p-5">
+        <SectionTitle>{t("stats_title")}</SectionTitle>
+        <div className="flex justify-between gap-3 text-sm font-bold">
+          {sides.map((side, i) => (
+            <span key={side.id} className="flex items-center gap-2" style={{ color: colours[i] }}>
+              {i === 1 && <span className="text-fg">{side.shortName}</span>}
+              <span aria-hidden className="size-2.5 rounded-full" style={{ backgroundColor: colours[i] }} />
+              {i === 0 && <span className="text-fg">{side.shortName}</span>}
+            </span>
+          ))}
+        </div>
+        <ul className="mt-1 divide-y divide-line">
+          {STAT_ROWS.map((key) => {
+            const va = a[key] ?? 0;
+            const vb = b[key] ?? 0;
+            const top = Math.max(va, vb) || 1;
+            const lead = LOWER_IS_BETTER.has(key) ? (va <= vb ? 0 : 1) : va >= vb ? 0 : 1;
+            return (
+              <li key={key} className="py-3">
+                <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_3.5rem] items-baseline gap-2">
+                  <span className="font-display text-2xl font-extrabold lining-nums tabular-nums text-fg">
+                    <span className="sr-only">{match.teamA.name}: </span>
+                    {a[key] ?? "—"}
+                  </span>
+                  <span className="text-center text-xs font-semibold text-muted-foreground">{statLabels[key]}</span>
+                  <span className="text-right font-display text-2xl font-extrabold lining-nums tabular-nums text-fg">
+                    <span className="sr-only">{match.teamB.name}: </span>
+                    {b[key] ?? "—"}
+                  </span>
+                </div>
+                <div aria-hidden className="mt-1.5 grid grid-cols-2 gap-1">
+                  {[va, vb].map((v, i) => (
+                    <div key={i} className={cn("flex h-1.5 overflow-hidden rounded-full bg-line", i === 0 && "justify-end")}>
+                      <span
+                        className="h-full rounded-full transition-[width] duration-500"
+                        style={{ width: `${(v / top) * 100}%`, backgroundColor: colours[i], opacity: lead === i ? 1 : 0.45 }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    );
+  };
+
+  // "Alex Carey": first names light, surname bold, the way a broadcast caption sets them.
+  const captionName = (pid: string) => {
+    const parts = name(pid).split(/\s+/);
+    const last = parts.pop();
+    return (
+      <Link href={`/${locale}/live/player/${pid}`} className="min-w-0 truncate text-fg hover:text-accent hover:underline">
+        {parts.length > 0 && <span className="font-normal">{parts.join(" ")} </span>}
+        <span className="font-bold">{last}</span>
+      </Link>
+    );
+  };
+
+  const performerList = (title: string, items: Performer[]) => (
+    <div className="min-w-0">
+      <p className="px-4 pb-1 pt-3 text-xs font-semibold text-muted-foreground">{title}</p>
+      {items.length === 0 ? (
+        <p className="px-4 pb-3 text-sm text-muted-foreground">—</p>
+      ) : (
+        <ul>
+          {items.map((perf) => (
+            <li key={perf.id} className="flex items-baseline justify-between gap-3 px-4 py-2 odd:bg-fg/[0.04]">
+              {captionName(perf.id)}
+              <span className="shrink-0 font-display text-2xl font-extrabold lining-nums tabular-nums text-fg">{perf.figure}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
+  // Each innings as a paper-white team bar over its best batters and the bowlers who bowled at them.
+  const performersPanel = () => (
+    <section className="glass overflow-hidden">
+      <div className="px-4 pt-4 md:px-5 md:pt-5">
+        <SectionTitle>{t("top_performers")}</SectionTitle>
+      </div>
+      {match.innings.map((inn, i) => {
+        const side = team(inn.battingTeam);
+        return (
+          <div key={i} className="pb-2">
+            <div className="flex items-center gap-3 bg-fg py-2 pl-3 pr-4 text-bg">
+              <span aria-hidden className="h-8 w-1 rounded-full" style={{ backgroundColor: side.color || "var(--red-500)" }} />
+              <TeamLogo team={side} size={28} />
+              <span className="display min-w-0 flex-1 truncate pt-0.5 text-xl">{side.name}</span>
+              <span className="display shrink-0 pt-0.5 text-2xl lining-nums tabular-nums">
+                {inn.runs}/{inn.wickets}
+              </span>
+              <span className="shrink-0 text-xs font-semibold tabular-nums">
+                {inn.overs} {t("overs_unit")}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 sm:divide-x sm:divide-line">
+              {performerList(t("batting_title"), topBatters(inn))}
+              {performerList(t("bowling_title"), topBowlers(inn))}
+            </div>
+          </div>
+        );
+      })}
+    </section>
   );
 
   const livePanel = () => {
@@ -204,12 +334,18 @@ export default function MatchCenter({ id }: { id: string }) {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {stat(t("crr"), current.runRate ?? "—")}
-          {match.chase && stat(t("target"), match.chase.target)}
-          {match.chase && isLive && stat(t("rrr"), match.chase.requiredRate ?? "—")}
-          {stand && isLive && stat(t("partnership"), t("partnership_value", { runs: stand.runs, balls: stand.balls }))}
-          {stat(t("extras"), current.extras.total)}
+        {isLive && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {stat(t("crr"), current.runRate ?? "—")}
+            {match.chase && stat(t("target"), match.chase.target)}
+            {match.chase && stat(t("rrr"), match.chase.requiredRate ?? "—")}
+            {stand && stat(t("partnership"), t("partnership_value", { runs: stand.runs, balls: stand.balls }))}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+          {statsPanel()}
+          {performersPanel()}
         </div>
 
         {recent.length > 0 && (
@@ -350,61 +486,105 @@ export default function MatchCenter({ id }: { id: string }) {
 
   const meta = [match.title, match.venue, formatMatchDate(match.startAt), t("overs_a_side", { overs: match.oversPerInnings })].filter(Boolean);
 
+  const imageLabels: ImageLabels = {
+    summaryTitle: t("summary_title"),
+    boardTitle: t("board_title"),
+    friendly: t("friendly"),
+    oversUnit: t("overs_unit"),
+    versus: t("vs"),
+    yetToBat: t("yet_to_bat_team"),
+    statsTitle: t("stats_title"),
+    stats: statLabels,
+    topBatters: t("top_batters"),
+    topBowlers: t("top_bowlers"),
+    playerOfMatch: t("player_of_match"),
+    oversASide: t("overs_a_side", { overs: match.oversPerInnings }),
+    headline,
+    date: formatDay(match.startAt),
+  };
+
+  // One side of the board: crest, name, and the score in the team's colour bar.
+  const boardSide = (side: TeamBrief) => {
+    const lines = match.innings.filter((inn) => inn.battingTeam === side.id);
+    const batting = isLive && current?.battingTeam === side.id;
+    const won = match.result?.winner === side.id;
+    return (
+      <div className="flex min-w-0 flex-col items-center text-center">
+        <TeamLogo team={side} size={72} />
+        <Link
+          href={`/${locale}/live/team/${side.id}`}
+          className={cn("display mt-3 line-clamp-2 max-w-full text-xl hover:underline md:text-3xl", won || batting ? "text-accent" : "text-fg")}
+        >
+          {side.name}
+        </Link>
+        <div className="mt-3 w-full max-w-56 overflow-hidden rounded-xl bg-bg/55 px-2 pb-2.5 pt-0">
+          <span aria-hidden className="mx-auto mb-2 block h-1 w-3/5 rounded-b-full" style={{ backgroundColor: colourOnInk(side.color, "var(--red-500)") }} />
+          {lines.length > 0 ? (
+            <>
+              <p className="font-display text-4xl font-black leading-none lining-nums tabular-nums text-fg md:text-6xl">
+                {lines.map((inn) => `${inn.runs}/${inn.wickets}`).join(" & ")}
+              </p>
+              <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+                {lines[lines.length - 1].overs} {t("overs_unit")}
+                {batting && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-accent align-middle motion-safe:animate-pulse" aria-hidden />}
+              </p>
+            </>
+          ) : (
+            <p className="py-2 text-sm text-muted-foreground">{t("yet_to_bat_team")}</p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div>
       {status}
 
-      {/* Scoreboard */}
-      <div className="live-card mb-6 rounded-2xl p-5 shadow-lg md:p-7">
-        <div className="flex items-start justify-between gap-3">
-          <p className="min-w-0 text-[11px] font-bold uppercase leading-relaxed tracking-widest text-muted-foreground">
-            {match.tournament ? (
-              <Link href={`/${locale}/live/tournament/${match.tournament.slug}`} className="text-accent hover:underline">
-                {match.tournament.name}
-              </Link>
-            ) : (
-              <span className="text-accent">{t("friendly")}</span>
-            )}
-            {meta.length > 0 && <span> · {meta.join(" · ")}</span>}
-          </p>
-          <StatusPill status={match.status} />
-        </div>
-
-        <div className="mt-5 space-y-4">
-          {[match.teamA, match.teamB].map((side) => {
-            const lines = match.innings.filter((inn) => inn.battingTeam === side.id);
-            const batting = isLive && current?.battingTeam === side.id;
-            const won = match.result?.winner === side.id;
-            return (
-              <div key={side.id} className="flex items-center gap-3 md:gap-4">
-                <TeamLogo team={side} size={44} />
-                <Link
-                  href={`/${locale}/live/team/${side.id}`}
-                  className={cn("min-w-0 flex-1 truncate text-lg font-bold hover:underline md:text-xl", won || batting ? "text-accent" : "text-fg")}
-                >
-                  {side.name}
+      {/* Scoreboard: the two sides facing each other over a floodlit ground. */}
+      <section className="match-stage relative mb-6 overflow-hidden rounded-2xl border border-line">
+        <div className="relative p-4 md:p-8">
+          <div className="flex items-start justify-between gap-3">
+            <p className="min-w-0 text-sm leading-relaxed text-muted-foreground">
+              {match.tournament ? (
+                <Link href={`/${locale}/live/tournament/${match.tournament.slug}`} className="font-bold text-accent hover:underline">
+                  {match.tournament.name}
                 </Link>
-                {lines.length > 0 ? (
-                  <p className="shrink-0 text-right">
-                    <span className="font-display text-3xl font-extrabold lining-nums tabular-nums text-fg md:text-4xl">
-                      {lines.map((inn) => `${inn.runs}/${inn.wickets}`).join(" & ")}
-                    </span>
-                    <span className="block text-xs tabular-nums text-muted-foreground">
-                      {lines[lines.length - 1].overs} {t("overs_unit")}
-                    </span>
-                  </p>
-                ) : (
-                  <span className="shrink-0 text-muted-foreground">—</span>
-                )}
-              </div>
-            );
-          })}
-        </div>
+              ) : (
+                <span className="font-bold text-accent">{t("friendly")}</span>
+              )}
+              {meta.length > 0 && <span className="block text-xs">{meta.join(", ")}</span>}
+            </p>
+            <StatusPill status={match.status} />
+          </div>
 
-        <p className={cn("mt-5 border-t border-line pt-4 text-sm leading-relaxed", result ? "font-bold text-accent" : "text-fg")}>
-          {headline}
-        </p>
-      </div>
+          <div className="mt-6 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 md:mt-8 md:gap-8">
+            {boardSide(match.teamA)}
+            <span aria-hidden className="display mt-5 text-3xl text-fg/70 md:mt-8 md:text-5xl">
+              {t("vs")}
+            </span>
+            {boardSide(match.teamB)}
+          </div>
+
+          <p className={cn("display mx-auto mt-6 max-w-3xl text-center text-2xl md:mt-8 md:text-4xl", result ? "text-accent" : "text-fg")}>{headline}</p>
+
+          <div className="mt-5 flex justify-center">
+            <MatchImageDialog
+              match={match}
+              labels={imageLabels}
+              text={{
+                open: t("image_open"),
+                title: t("image_title"),
+                summary: t("image_summary"),
+                board: t("image_board"),
+                download: t("image_download"),
+                share: t("image_share"),
+                close: t("close"),
+              }}
+            />
+          </div>
+        </div>
+      </section>
 
       <Tabs<Tab>
         value={tab}

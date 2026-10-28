@@ -35,6 +35,8 @@
   --ink-300: #bdb3b5;
   --ink-100: #ede8e8;
   --paper-50: #fcfaf4;
+  --grass-600: #1b5e2e; /* floodlit outfield, match stage only */
+  --grass-900: #0a2814;
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --cut: 8deg; /* the crest's diagonal, reused for buttons and section edges */
@@ -381,6 +383,37 @@ body {
   border: 1px solid var(--line);
   border-radius: var(--card-radius);
   background: var(--surface);
+}
+
+/*
+ * The match centre's scoreboard: a floodlit ground at night. Two pools of light
+ * from the corner towers, the outfield rising from the bottom edge in mown
+ * stripes. Gradients only, no image, so it costs nothing to load.
+ */
+.match-stage {
+  background:
+    radial-gradient(60% 70% at 8% -10%, rgb(255 250 235 / 0.2), transparent 70%),
+    radial-gradient(60% 70% at 92% -10%, rgb(255 250 235 / 0.2), transparent 70%),
+    radial-gradient(85% 55% at 50% 125%, var(--grass-600), var(--grass-900) 70%, transparent 71%),
+    linear-gradient(180deg, #06080c, var(--ink-950) 70%);
+}
+.match-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(90deg, rgb(255 255 255 / 0.03) 0 6%, transparent 6% 12%);
+  -webkit-mask-image: radial-gradient(85% 55% at 50% 125%, #000 70%, transparent 71%);
+  mask-image: radial-gradient(85% 55% at 50% 125%, #000 70%, transparent 71%);
+}
+
+/* Frosted panel over the stage and the night background. */
+.glass {
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: var(--card-radius);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.03));
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
 }
 
 /* Film grain over the night sections, so flat ink reads as a lit surface. */
@@ -798,6 +831,292 @@ body {
 }
 
 /* Printing a console page (a report, a register) prints the page, not the app around it. */
+/*
+ * The scorer's sheet (components/cricket/score-sheet.tsx). Fixed paper colours in
+ * both console themes: it is a printed form, and on screen it previews the paper.
+ * The form is ink; what the app fills in is "pen", the crest's blue.
+ */
+.sheet {
+  --sheet-paper: #fff;
+  --sheet-ink: #111113;
+  --sheet-rule: #111113;
+  --sheet-hair: #9a9aa2;
+  --sheet-tint: #f1f1f3;
+  --sheet-pen: var(--blue-600);
+  --sheet-red: var(--red-500);
+  page: sheet;
+  break-after: page;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6mm;
+  width: 285mm;
+  height: 198mm;
+  padding: 0;
+  overflow: hidden;
+  background: var(--sheet-paper);
+  color: var(--sheet-ink);
+  font-family: var(--font-hanken), system-ui, sans-serif;
+  font-size: 6.6pt;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums lining-nums;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+.sheet:last-child {
+  break-after: auto;
+}
+@page sheet {
+  size: A4 landscape;
+  margin: 6mm;
+}
+.sheet-pen {
+  color: var(--sheet-pen);
+  font-weight: 700;
+}
+.sheet-band {
+  display: flex;
+  align-items: center;
+  gap: 2.5mm;
+  padding-bottom: 1.2mm;
+  border-bottom: 0.6mm solid var(--sheet-red);
+}
+.sheet-crest {
+  width: 9mm;
+  height: 9mm;
+  object-fit: contain;
+}
+.sheet-club {
+  font-family: var(--font-shoulders), sans-serif;
+  font-weight: 900;
+  font-size: 13pt;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.sheet-context {
+  margin-top: 0.4mm;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 7pt;
+  color: var(--sheet-ink);
+}
+.sheet-kind {
+  margin-left: auto;
+  font-family: var(--font-shoulders), sans-serif;
+  font-weight: 800;
+  font-size: 11pt;
+  white-space: nowrap;
+}
+.sheet-head {
+  display: grid;
+  grid-template-columns: 1.3fr 1.3fr 1.3fr 1.3fr 0.8fr;
+  gap: 1.6mm;
+}
+.sheet-box {
+  display: flex;
+  flex-direction: column;
+  height: 9mm;
+  border: 0.25mm solid var(--sheet-rule);
+}
+.sheet-label {
+  display: block;
+  padding: 0.5mm 1mm;
+  background: var(--sheet-tint);
+  border-bottom: 0.2mm solid var(--sheet-hair);
+  font-weight: 700;
+  font-size: 6pt;
+}
+.sheet-box-value {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  padding: 0 1.2mm;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 8pt;
+}
+.sheet-body {
+  display: grid;
+  grid-template-columns: 1fr 66mm;
+  gap: 2mm;
+  min-height: 0;
+  flex: 1;
+}
+.sheet-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.6mm;
+  min-width: 0;
+}
+.sheet-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  border: 0.25mm solid var(--sheet-rule);
+}
+.sheet-table th,
+.sheet-table td {
+  height: 3.3mm;
+  padding: 0 0.8mm;
+  border: 0.15mm solid var(--sheet-hair);
+  text-align: center;
+  vertical-align: middle;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.sheet-table th {
+  background: var(--sheet-tint);
+  font-weight: 700;
+  font-size: 6pt;
+}
+.sheet-table thead th {
+  border-bottom: 0.25mm solid var(--sheet-rule);
+}
+.sheet-table .text-left {
+  text-align: left;
+}
+.sheet-bat .sheet-pair-top td,
+.sheet-bat .sheet-pair-top th {
+  border-top: 0.25mm solid var(--sheet-rule);
+}
+.sheet-num {
+  background: var(--sheet-tint);
+  font-weight: 700;
+}
+.sheet-name {
+  text-align: left !important;
+  text-overflow: ellipsis;
+}
+/* The dismissal has the batter's two lines to itself: "run out (Shalin Rajan)" wraps rather than clips. */
+.sheet-table .sheet-wrap {
+  white-space: normal;
+  line-height: 1.1;
+}
+.sheet-fig {
+  font-size: 7pt;
+}
+.sheet-strong {
+  font-size: 8pt;
+}
+.sheet-46 {
+  background: var(--sheet-tint);
+  font-weight: 700;
+  font-size: 5.6pt;
+}
+.sheet-strokes {
+  text-align: left !important;
+  white-space: normal !important;
+  word-spacing: 0.6mm;
+  font-size: 6.8pt;
+  line-height: 1.25;
+}
+.sheet-strokes-long {
+  font-size: 5.6pt;
+  word-spacing: 0.2mm;
+}
+.sheet-mid {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr;
+  gap: 1.6mm;
+}
+.sheet-extras td {
+  width: 9mm;
+}
+.sheet-total {
+  font-size: 10pt;
+}
+.sheet-total-overs {
+  display: block;
+  font-size: 6pt;
+  font-weight: 600;
+}
+.sheet-bowl td,
+.sheet-bowl th {
+  height: 4.3mm;
+}
+.sheet-over {
+  font-size: 7pt;
+}
+.sheet-w {
+  margin-left: 0.4mm;
+  color: var(--sheet-red);
+  font-size: 5.4pt;
+}
+.sheet-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.6mm;
+  min-height: 0;
+}
+.sheet-tally td,
+.sheet-tally th {
+  height: auto;
+  padding: 0;
+  line-height: 2.62mm;
+  font-size: 5.6pt;
+}
+.sheet-tally-label {
+  background: var(--sheet-tint);
+  font-weight: 700;
+}
+/* A run reached is crossed off with a pen stroke, as a scorer does by hand. */
+.sheet-crossed {
+  color: var(--sheet-pen);
+  background-image: linear-gradient(to top right, transparent calc(50% - 0.2mm), var(--sheet-pen) 50%, transparent calc(50% + 0.2mm));
+}
+/* Where a wicket fell, the run is ringed. */
+.sheet-ringed {
+  box-shadow: inset 0 0 0 0.35mm var(--sheet-red);
+  border-radius: 50%;
+}
+.sheet-final {
+  outline: 0.4mm solid var(--sheet-pen);
+  outline-offset: -0.4mm;
+  font-weight: 800;
+}
+.sheet-result {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 0.25mm solid var(--sheet-rule);
+}
+.sheet-result > div {
+  display: flex;
+  flex-direction: column;
+  height: 8mm;
+}
+.sheet-result > div + div {
+  border-left: 0.15mm solid var(--sheet-hair);
+}
+.sheet-result .sheet-result-wide {
+  grid-column: 1 / -1;
+  border-left: 0;
+  border-top: 0.15mm solid var(--sheet-hair);
+}
+.sheet-signs {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  border: 0.25mm solid var(--sheet-rule);
+}
+.sheet-sign {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.sheet-sign + .sheet-sign {
+  border-top: 0.25mm solid var(--sheet-rule);
+}
+.sheet-line {
+  flex: 1;
+  margin: 0 1.5mm;
+  border-bottom: 0.15mm solid var(--sheet-hair);
+}
+.sheet-strip td,
+.sheet-strip th {
+  font-size: 6pt;
+}
+
 @media print {
   .theme-console {
     --bg: #fff;

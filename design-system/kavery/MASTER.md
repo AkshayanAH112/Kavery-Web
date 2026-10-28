@@ -192,6 +192,23 @@ field has focus, and stays under every dialog (z-30).
 rounded bars and a donut. Every chart has a text summary for screen readers and its numbers repeated as
 text beside it. On a phone a chart scrolls sideways rather than shrinking its labels.
 
+**Match centre board** (`components/live/MatchCenter.tsx`) — the match page opens on `.match-stage`, a
+floodlit ground drawn in gradients (two corner lights, the outfield in mown stripes from `--grass-600/900`,
+used nowhere else). On it the two sides face each other: crest, name, and the score over a bar in the
+team's colour. `.glass` is the frosted panel used on the stage and for the summary panels (match statistics
+team against team, top performers as paper-white team bars). A team colour shown on ink goes through
+`colourOnInk()` (`lib/cricket/match-stats.ts`), which lifts a dark club colour until it reads.
+
+**Match images** (`components/live/summary-image.ts`) — "Summary" (1080×1350) and "Board" (1920×1080),
+drawn on a canvas in the browser like the membership card, from the public match page and the scorer's
+console. The summary's header is the one place outside the hero where the sashes appear: an image shared
+on its own carries the club's mark with it.
+
+**Scorer's sheet** (`components/cricket/score-sheet.tsx`, `.sheet*` in `globals.css`) — the club's paper
+form, A4 landscape, one page per innings, at `/console/cricket/matches/[id]/sheet` (filled in) and
+`/console/cricket/sheet` (blank). The form prints black; filled-in values are "pen", the crest blue. It
+keeps fixed paper colours in both console themes.
+
 **Match card** — status chip (LIVE red with pulsing dot / UPCOMING yellow / RESULT outline), two team
 rows with a colour bar and `runs/wickets (overs)` in display numerals, a footer with result or time.
 

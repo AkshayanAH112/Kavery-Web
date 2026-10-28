@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, ExternalLink, Eye, EyeOff, Loader2, RotateCcw } from "lucide-react";
+import { ArrowLeft, ExternalLink, Eye, EyeOff, FileText, Loader2, RotateCcw } from "lucide-react";
 import type { ScoreAction } from "@/lib/cricket/scoring";
 import { ConfirmDialog } from "@/components/console/confirm-dialog";
 import { cricketApi, type ApiError } from "@/components/cricket/api";
@@ -12,6 +12,47 @@ import { MatchSetup } from "@/components/cricket/match-setup";
 import { Scorecard, playerName, type AdminMatchView } from "@/components/cricket/scorecard";
 import { ScoringPad } from "@/components/cricket/scoring-pad";
 import { TeamBadge } from "@/components/cricket/teams-panel";
+import { MatchImageDialog } from "@/components/live/MatchImageDialog";
+import type { ImageLabels } from "@/components/live/summary-image";
+
+// The console is English-only, so the image is captioned in English here.
+const IMAGE_TEXT = {
+  open: "Share image",
+  title: "Match image",
+  summary: "Summary",
+  board: "Board",
+  download: "Download PNG",
+  share: "Share",
+  close: "Close",
+};
+
+function imageLabels(match: AdminMatchView, headline: string): ImageLabels {
+  return {
+    summaryTitle: "Match summary",
+    boardTitle: "Match centre",
+    friendly: "Friendly",
+    oversUnit: "ov",
+    versus: "VS",
+    yetToBat: "Yet to bat",
+    statsTitle: "Match statistics",
+    stats: {
+      runs: "Runs",
+      runRate: "Run rate",
+      fours: "Fours",
+      sixes: "Sixes",
+      wicketsTaken: "Wickets taken",
+      dotBalls: "Dot balls",
+      extrasConceded: "Extras conceded",
+      bestStand: "Best partnership",
+    },
+    topBatters: "Top batters",
+    topBowlers: "Top bowlers",
+    playerOfMatch: "Player of the match",
+    oversASide: `${match.oversPerInnings} overs a side`,
+    headline,
+    date: match.startAt ? new Date(match.startAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : null,
+  };
+}
 
 export function MatchConsole() {
   const { id } = useParams<{ id: string }>();
@@ -109,6 +150,13 @@ export function MatchConsole() {
   const battingTeam = inn ? (inn.battingTeam === match.teamA.id ? match.teamA : match.teamB) : null;
   const finished = match.status === "completed" || match.status === "abandoned";
   const everyone = [...match.squadA, ...match.squadB];
+  const headline =
+    resultText(match) ??
+    (match.chase && match.status === "live" && battingTeam
+      ? `${battingTeam.name} need ${match.chase.runsNeeded} from ${match.chase.ballsLeft} balls`
+      : match.toss
+        ? `${(match.toss.wonBy === match.teamA.id ? match.teamA : match.teamB).name} won the toss and chose to ${match.toss.decision}`
+        : `${match.oversPerInnings} overs a side`);
 
   return (
     // Narrow on purpose: this screen is used one-handed on a phone at the ground,
@@ -179,6 +227,18 @@ export function MatchConsole() {
           )}
         </div>
       </div>
+
+      {match.status !== "upcoming" && (
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/console/cricket/matches/${match.id}/sheet`}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-bold text-foreground hover:bg-muted"
+          >
+            <FileText size={16} aria-hidden /> Score sheet
+          </Link>
+          <MatchImageDialog match={match} labels={imageLabels(match, headline)} text={IMAGE_TEXT} />
+        </div>
+      )}
 
       {error && (
         <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
