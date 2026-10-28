@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { AlertCircle, BellRing, CalendarCheck, Check, Loader2, LogOut, Megaphone, MonitorCheck, QrCode, UserPlus, X } from "lucide-react";
+import { AlertCircle, BellRing, CalendarCheck, Check, Loader2, LogOut, Megaphone, MonitorCheck, QrCode, UserPlus, UserRound, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import ResultsView, { CurrentExam, type ResultsPayload } from "@/components/site/ResultsView";
 
@@ -19,6 +19,7 @@ type OnlinePaper = {
   result: { score: number; max: number; toMark: number } | null;
 };
 type Child = ResultsPayload & {
+  photoUrl: string | null;
   attendance: { marked: number; present: number; absent: number; percent: number | null; recent: { date: string; subject: string | null; time: string | null; present: boolean }[] };
   notices: Notice[];
   online: OnlinePaper[];
@@ -28,6 +29,21 @@ type Me = { children: Child[]; announcements: { title: string; slug: string; exc
 const SCANNER_ID = "parent-card-scanner";
 const inputClass =
   "w-full min-h-12 rounded-[var(--field-radius)] border border-line bg-surface-2/60 px-4 py-3 text-base text-fg outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-accent";
+
+/** The child's photo, cropped like the ID card (210 × 276); a plain silhouette when there is none. */
+function ChildPhoto({ child, className }: { child: Child; className: string }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <div className={`shrink-0 overflow-hidden bg-surface-2 ${className}`}>
+      {child.photoUrl && !failed ? (
+        // eslint-disable-next-line @next/next/no-img-element -- a private file behind the parent's cookie
+        <img src={child.photoUrl} alt={child.student.name} onError={() => setFailed(true)} className="h-full w-full object-cover" />
+      ) : (
+        <UserRound className="h-full w-full p-[18%] text-muted-foreground" aria-hidden />
+      )}
+    </div>
+  );
+}
 
 const formatDate = (value: string) => new Date(value).toLocaleDateString("en-GB", { timeZone: "Asia/Colombo", day: "numeric", month: "short", year: "numeric" });
 
@@ -346,20 +362,24 @@ export default function ParentPortal() {
                 role="tab"
                 aria-selected={i === selected}
                 onClick={() => setSelected(i)}
-                className={`min-h-11 cursor-pointer rounded-full border px-4 text-sm font-semibold transition-colors ${i === selected ? "border-accent bg-accent text-on-accent" : "border-line text-muted-foreground hover:text-fg"}`}
+                className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border pl-1.5 pr-4 text-sm font-semibold transition-colors ${i === selected ? "border-accent bg-accent text-on-accent" : "border-line text-muted-foreground hover:text-fg"}`}
               >
+                <ChildPhoto key={c.photoUrl} child={c} className="size-8 rounded-full" />
                 {c.student.name}
               </button>
             ))}
           </div>
         )}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <h2 className="text-2xl font-extrabold text-fg wrap-break-word md:text-3xl">{child.student.name}</h2>
-            <p className="mt-1 text-muted-foreground">
-              {t("grade", { grade: child.student.grade })}
-              {child.student.batchName ? ` · ${child.student.batchName}` : ""} · <span className="tabular">{child.student.registrationNumber}</span>
-            </p>
+          <div className="flex min-w-0 items-center gap-4">
+            <ChildPhoto key={child.photoUrl} child={child} className="aspect-210/276 w-20 rounded-2xl border border-line md:w-24" />
+            <div className="min-w-0">
+              <h2 className="text-2xl font-extrabold text-fg wrap-break-word md:text-3xl">{child.student.name}</h2>
+              <p className="mt-1 text-muted-foreground">
+                {t("grade", { grade: child.student.grade })}
+                {child.student.batchName ? ` · ${child.student.batchName}` : ""} · <span className="tabular">{child.student.registrationNumber}</span>
+              </p>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => setAdding((v) => !v)} className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-line px-4 text-sm font-semibold text-accent hover:text-fg">

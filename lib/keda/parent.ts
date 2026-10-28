@@ -154,7 +154,13 @@ export async function childView(student: StudentRow) {
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 10);
 
-  return { ...results, attendance, notices, online };
+  // The photo is served only to a browser whose cookie names this child (/api/public/parents/photo).
+  const photoUrl =
+    student.photoKey && student.registrationNumber
+      ? `/api/public/parents/photo?student=${encodeURIComponent(student.registrationNumber)}&v=${student.photoKey.slice(-12, -4)}`
+      : null;
+
+  return { ...results, photoUrl, attendance, notices, online };
 }
 
 /** KEDA's own published posts: the announcements every parent sees. */

@@ -11,8 +11,8 @@ const NOT_FOUND = () => Response.json({ error: "Student not found" }, { status: 
 /**
  * A student's photo, for the ID card and the student's page. It is a child's
  * picture, so it is private: only signed-in staff who work with the classes can
- * open it, the parent page never includes it, and the caller names a student,
- * never a storage key.
+ * open it here, the child's own parent sees it only through
+ * /api/public/parents/photo, and the caller names a student, never a storage key.
  */
 export async function GET(_request: Request, { params }: RouteContext<"/api/students/[id]/photo">) {
   const auth = await authorize("attendance.mark");

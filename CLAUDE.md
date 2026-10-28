@@ -220,8 +220,10 @@ database page returning 500 until it is restarted.
   student without a photo rather than no student. Both places pick the photo through `PhotoSource`
   (`components/console/photo-editor.tsx`): Upload or Camera, then a cropper fixed to the card's
   210 × 276 frame (drag, pinch/scroll/slider zoom, turn), saved at 630 px wide. On phones Camera is
-  the phone's own camera app (`capture`); elsewhere it is a live camera in the page. A photo address sent by a client is never stored, and the parent
-  page never includes the photo.
+  the phone's own camera app (`capture`); elsewhere it is a live camera in the page. A photo address sent by a client is never stored. The parent
+  page shows the photo through its own route, `GET /api/public/parents/photo?student=<index number>`,
+  which serves it only to a browser whose `ksc_parent` cookie names that child (`signedInChild()`);
+  `childView()` gives the address as `photoUrl`, never the storage key.
 - **Site details** (`lib/site-settings.ts`, `/api/site-settings`, console → Site details): contact
   lines, the About page's text in both languages, class times, office bearers, and contact people
   (club or KEDA, name, phone — listed under Contact with call and WhatsApp links). The About page
