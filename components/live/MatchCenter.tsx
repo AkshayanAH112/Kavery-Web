@@ -21,7 +21,7 @@ type Tab = "live" | "scorecard" | "overs" | "squads";
 const th = "px-2 py-2.5 text-right text-[11px] font-bold uppercase tracking-wider text-muted-foreground";
 const td = "px-2 py-2.5 text-right tabular-nums text-muted-foreground";
 
-export default function MatchCenter({ id }: { id: string }) {
+export default function MatchCenter({ id, initial }: { id: string; initial?: { match: MatchView } | null }) {
   const t = useTranslations("Live");
   const locale = useLocale();
   const resultText = useResultText();
@@ -33,7 +33,7 @@ export default function MatchCenter({ id }: { id: string }) {
     if (status === "live" || status === "innings_break") return 5_000;
     if (status === "upcoming") return 30_000;
     return null; // finished: the scorecard will not change again
-  });
+  }, initial);
 
   const status = <PollStatus state={state} offline={offline} notFoundKey="not_found_match" />;
   if (!data) return status;
