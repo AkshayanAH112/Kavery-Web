@@ -8,6 +8,10 @@ import { mediaUrl } from "@/lib/media";
  * console form can use it too.
  */
 export type Bilingual = { en: string; ta: string };
+/** The shapes Site details crops pictures to, and the public site shows them in: a portrait, and a logo tile. */
+export const SITE_PHOTO_ASPECT = 4 / 5;
+export const SITE_LOGO_ASPECT = 3 / 2;
+
 /** A committee member. `photoKey` is an R2 key in the public "site" folder, or "" for none. */
 export type Officer = { org: "ksc" | "keda"; role: Bilingual; name: string; photoKey: string };
 /** A sponsor, shown with its logo or picture on the About page. `url` is their own site, if any. */

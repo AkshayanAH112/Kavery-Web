@@ -37,7 +37,7 @@ export function CommitteeGrid({ people, locale, compact = false, className = "" 
         <li key={i} className="group min-w-0">
           {/* Each arrives a beat after the one to its left. */}
           <Reveal delay={(i % 4) * 0.07}>
-            <Portrait officer={person} className="aspect-square" />
+            <Portrait officer={person} className="aspect-[4/5]" />
             <p className="mt-4 text-lg font-semibold leading-snug text-fg md:text-xl">{person.name}</p>
             <p className="mt-0.5 text-sm font-semibold text-brand-text">{roleOf(person, locale)}</p>
           </Reveal>

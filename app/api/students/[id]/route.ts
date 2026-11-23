@@ -3,7 +3,7 @@ import { authorize } from "@/lib/auth/guard";
 import { deletePrivateFiles } from "@/lib/private-files";
 import { can } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db";
-import { PHONE_ERROR, attendanceDoc, getBatch, getStudent, isGrade, isRegistrationNumber, isValidLocalPhone, marksForStudent, readBody, reserveRegistrationNumber, studentDoc, text } from "@/lib/keda/server";
+import { PHONE_ERROR, attendanceDoc, getBatch, getStudent, isGrade, isRegistrationNumber, isValidLocalPhone, marksForStudent, normalizeRegistrationNumber, readBody, reserveRegistrationNumber, studentDoc, text } from "@/lib/keda/server";
 
 const { students: S, attendance: A, classSessions: C, marks: M, leaveAlerts: L } = schema;
 const NOT_FOUND = () => Response.json({ error: "Student not found" }, { status: 404 });
@@ -97,14 +97,15 @@ export async function PATCH(request: Request, { params }: RouteContext<"/api/stu
   }
 
   // The index number is printed on the student's card, so changing it is an admin-only, explicit act.
-  if (data.registrationNumber !== undefined && data.registrationNumber !== existing.registrationNumber) {
+  const typed = data.registrationNumber === undefined ? undefined : normalizeRegistrationNumber(data.registrationNumber);
+  if (typed !== undefined && typed !== existing.registrationNumber) {
     if (!data.allowRegistrationNumberEdit || !can(auth.session.role, "staff.manage")) {
       return fail("The index number can only be changed by an administrator, with allowRegistrationNumberEdit: true", 403);
     }
-    if (!isRegistrationNumber(data.registrationNumber)) return fail("Index number must look like KEDA/27/1000");
-    if (await getDb().query.students.findFirst({ where: eq(S.registrationNumber, data.registrationNumber) })) return fail("That index number is already in use", 409);
-    update.registrationNumber = data.registrationNumber;
-    await reserveRegistrationNumber(data.registrationNumber);
+    if (!isRegistrationNumber(typed)) return fail("Index number must look like KEDA/27/1000");
+    if (await getDb().query.students.findFirst({ where: eq(S.registrationNumber, typed) })) return fail(`${typed} is already in use by another student`, 409);
+    update.registrationNumber = typed;
+    await reserveRegistrationNumber(typed);
   }
 
   // Reactivation starts a fresh leave cycle. totalLeaves is lifetime and is never reset.

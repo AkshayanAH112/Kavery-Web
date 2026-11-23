@@ -31,14 +31,31 @@ function coverage(img: HTMLImageElement, aspect: number, view: View) {
   return ratio > aspect ? { w: (view.zoom * ratio) / aspect, h: view.zoom } : { w: view.zoom, h: (view.zoom * aspect) / ratio };
 }
 
-/** Keeps the picture covering the frame: x and y are offsets in frame widths and heights. */
-function clamp(img: HTMLImageElement, aspect: number, view: View): View {
-  const zoom = Math.min(MAX_ZOOM, Math.max(1, view.zoom));
+/**
+ * The smallest zoom allowed. A photo must always cover its frame (1). A logo may shrink
+ * until the whole of it fits inside, with white around it (`fit`).
+ */
+function minZoom(img: HTMLImageElement, aspect: number, view: View, fit: boolean) {
+  if (!fit) return 1;
+  const { w, h } = coverage(img, aspect, { ...view, zoom: 1 });
+  return 1 / Math.max(w, h);
+}
+
+/**
+ * Keeps the picture in the frame: x and y are offsets in frame widths and heights.
+ * Larger than the frame, it may move until an edge meets the frame's edge; smaller
+ * (a fitted logo), it may move until it touches one.
+ */
+function clamp(img: HTMLImageElement, aspect: number, view: View, fit: boolean): View {
+  const zoom = Math.min(MAX_ZOOM, Math.max(minZoom(img, aspect, view, fit), view.zoom));
   const { w, h } = coverage(img, aspect, { ...view, zoom });
-  const mx = (w - 1) / 2;
-  const my = (h - 1) / 2;
+  const mx = Math.abs(w - 1) / 2;
+  const my = Math.abs(h - 1) / 2;
   return { ...view, zoom, x: Math.min(mx, Math.max(-mx, view.x)), y: Math.min(my, Math.max(-my, view.y)) };
 }
+
+/** Where a picture starts: filling the frame, or for a logo, whole and centred. */
+const startView = (img: HTMLImageElement | null, aspect: number, fit: boolean): View => (img && fit ? { ...START, zoom: minZoom(img, aspect, START, true) } : START);
 
 /** Draws the framed part of the picture onto a canvas of any size; the preview and the saved file use the same code. */
 function paint(ctx: CanvasRenderingContext2D, img: HTMLImageElement, aspect: number, view: View, width: number, height: number) {
@@ -64,8 +81,25 @@ async function toFile(canvas: HTMLCanvasElement): Promise<File> {
   throw new Error("This browser could not save the photo.");
 }
 
-/** Crop, move, zoom and turn a picture inside a fixed frame. */
-export function PhotoCropper({ file, aspect = CARD_PHOTO_ASPECT, title = "Adjust photo", onCancel, onDone }: { file: File; aspect?: number; title?: string; onCancel: () => void; onDone: (file: File) => void }) {
+/**
+ * Crop, move, zoom and turn a picture inside a fixed frame. With `fit` (logos) the
+ * picture can also be made smaller than the frame; the space around it is white.
+ */
+export function PhotoCropper({
+  file,
+  aspect = CARD_PHOTO_ASPECT,
+  fit = false,
+  title = "Adjust photo",
+  onCancel,
+  onDone,
+}: {
+  file: File;
+  aspect?: number;
+  fit?: boolean;
+  title?: string;
+  onCancel: () => void;
+  onDone: (file: File) => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const [img, setImg] = useState<HTMLImageElement | null>(null);
@@ -78,15 +112,20 @@ export function PhotoCropper({ file, aspect = CARD_PHOTO_ASPECT, title = "Adjust
     const url = URL.createObjectURL(file);
     let active = true;
     loadImage(url)
-      .then((loaded) => active && setImg(loaded))
+      .then((loaded) => {
+        if (!active) return;
+        setImg(loaded);
+        setView(startView(loaded, aspect, fit));
+      })
       .catch((e: Error) => active && setError(e.message));
     return () => {
       active = false;
       URL.revokeObjectURL(url);
     };
-  }, [file]);
+  }, [file, aspect, fit]);
 
-  const update = useCallback((change: (v: View) => View) => setView((v) => (img ? clamp(img, aspect, change(v)) : v)), [img, aspect]);
+  const update = useCallback((change: (v: View) => View) => setView((v) => (img ? clamp(img, aspect, change(v), fit) : v)), [img, aspect, fit]);
+  const lowest = img ? minZoom(img, aspect, view, fit) : 1;
 
   // Redraw the preview at the screen's pixel density.
   useEffect(() => {
@@ -173,7 +212,9 @@ export function PhotoCropper({ file, aspect = CARD_PHOTO_ASPECT, title = "Adjust
             <X size={18} aria-hidden />
           </button>
         </div>
-        <p className="mb-4 text-sm text-muted-foreground">Drag to move. Pinch, scroll or use the slider to zoom.</p>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Drag to move. Pinch, scroll or use the slider to zoom.{fit && " Zoom out to fit the whole logo."}
+        </p>
 
         <div
           ref={frameRef}
@@ -202,7 +243,7 @@ export function PhotoCropper({ file, aspect = CARD_PHOTO_ASPECT, title = "Adjust
           </button>
           <input
             type="range"
-            min={1}
+            min={lowest}
             max={MAX_ZOOM}
             step={0.01}
             value={view.zoom}
@@ -222,11 +263,11 @@ export function PhotoCropper({ file, aspect = CARD_PHOTO_ASPECT, title = "Adjust
         {error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
 
         <div className="mt-5 flex gap-3">
-          <button type="button" onClick={() => setView(START)} disabled={!img} className="min-h-11 flex-1 cursor-pointer rounded-lg border border-border font-semibold hover:bg-muted disabled:opacity-50">
+          <button type="button" onClick={() => setView(startView(img, aspect, fit))} disabled={!img} className="min-h-11 flex-1 cursor-pointer rounded-lg border border-border font-semibold hover:bg-muted disabled:opacity-50">
             Reset
           </button>
           <button type="button" onClick={save} disabled={!img || saving} className="inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-primary font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50">
-            {saving ? <Loader2 className="animate-spin" size={16} aria-hidden /> : <Check size={16} aria-hidden />} Use photo
+            {saving ? <Loader2 className="animate-spin" size={16} aria-hidden /> : <Check size={16} aria-hidden />} {fit ? "Use logo" : "Use photo"}
           </button>
         </div>
       </div>

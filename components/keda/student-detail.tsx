@@ -13,6 +13,7 @@ import { useCurrentUser } from "@/components/console/current-user";
 import { isValidPhoneLocal, PHONE_HINT } from "@/lib/phone";
 import { BaminiInput, BaminiToggle, useBaminiTyping } from "@/components/keda/bamini-input";
 import { ChoiceInput, useStudentChoices } from "@/components/keda/choice-input";
+import { RegistrationNumberInput, registrationNumberProblem, tidyRegistrationNumber } from "@/components/keda/registration-number";
 
 export default function StudentProfilePage() {
   const params = useParams();
@@ -377,6 +378,7 @@ export default function StudentProfilePage() {
 
       {isEditOpen && (
         <EditStudentModal
+          canEditNumber={user?.isAdmin === true}
           student={student}
           onClose={() => setIsEditOpen(false)}
           onSaved={() => { setIsEditOpen(false); fetchData(); }}
@@ -436,7 +438,7 @@ export default function StudentProfilePage() {
   );
 }
 
-function EditStudentModal({ student, onClose, onSaved }: { student: any; onClose: () => void; onSaved: () => void }) {
+function EditStudentModal({ student, canEditNumber, onClose, onSaved }: { student: any; canEditNumber: boolean; onClose: () => void; onSaved: () => void }) {
   const [batches, setBatches] = useState<any[]>([]);
   const [form, setForm] = useState({
     name: student.name,
@@ -449,6 +451,10 @@ function EditStudentModal({ student, onClose, onSaved }: { student: any; onClose
     batchId: student.batchId?._id ?? "",
     isActive: student.isActive !== false,
   });
+  const originalNumber: string = student.registrationNumber ?? "";
+  const [regNumber, setRegNumber] = useState(originalNumber);
+  const [regProblem, setRegProblem] = useState<string | null>(null);
+  const numberChanged = canEditNumber && tidyRegistrationNumber(regNumber) !== originalNumber;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -461,17 +467,25 @@ function EditStudentModal({ student, onClose, onSaved }: { student: any; onClose
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    const numberProblem = numberChanged ? registrationNumberProblem(regNumber) : null;
+    setRegProblem(numberProblem);
     if (!isValidPhoneLocal(form.guardianPhone)) {
       setPhoneError(PHONE_HINT);
       return;
     }
+    if (numberProblem) return;
     setPhoneError(null);
     setSaving(true);
     try {
       const res = await fetch(`/api/students/${student._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, grade: Number(form.grade) }),
+        body: JSON.stringify({
+          ...form,
+          grade: Number(form.grade),
+          // Sent only when an administrator has changed it; the route refuses anyone else.
+          ...(numberChanged ? { registrationNumber: tidyRegistrationNumber(regNumber), allowRegistrationNumberEdit: true } : {}),
+        }),
       });
       if (res.ok) onSaved();
       else { const err = await res.json() as any; setError(err.error); }
@@ -488,6 +502,18 @@ function EditStudentModal({ student, onClose, onSaved }: { student: any; onClose
           <button onClick={onClose} className="cursor-pointer text-muted-foreground hover:text-foreground"><X size={20} /></button>
         </div>
         <form onSubmit={save} className="space-y-4">
+          <RegistrationNumberInput
+            id="edit-registration-number"
+            value={regNumber}
+            onChange={(value) => { setRegNumber(value); if (regProblem) setRegProblem(registrationNumberProblem(value)); }}
+            problem={regProblem}
+            locked={canEditNumber ? undefined : "Printed on the student's card. Only an administrator can change it."}
+            hint={
+              numberChanged
+                ? `Changing it from ${originalNumber || "no number"}: the old card shows the old number, so print a new card. Its QR code stays the same and still scans.`
+                : "Printed on the student's card. Change it only to correct a mistake."
+            }
+          />
           <BaminiToggle on={bamini} onChange={setBamini} />
           <div><label className="field-label">Full Name</label><BaminiInput bamini={bamini} required className="field" value={form.name} onValueChange={v => setForm(prev => ({ ...prev, name: v }))} /></div>
           <div><label className="field-label">School</label><ChoiceInput options={choices.schools} bamini={bamini} className="field" value={form.school} onValueChange={v => setForm(prev => ({ ...prev, school: v }))} /></div>
