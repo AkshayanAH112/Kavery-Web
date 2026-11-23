@@ -117,7 +117,7 @@ export function SiteSettingsForm({ initial }: { initial: SiteSettings }) {
       <Card className="space-y-5 p-6">
         <CardHeader
           title="Committee members"
-          description="The club's and KEDA's committees, shown with their photos on the About page in this order. Add only people who have agreed to be named and pictured on the website."
+          description="The club's and KEDA's committees, shown with their photos on the home page and the About page in this order. The first person in each committee (usually the president) gets the large photo on the home page. Add only people who have agreed to be named and pictured on the website."
           action={
             <Button variant="secondary" onClick={() => update({ officers: [...settings.officers, { org: "ksc", role: { en: "", ta: "" }, name: "", photoKey: "" }] })}>
               <Plus size={16} aria-hidden /> Add
@@ -125,7 +125,7 @@ export function SiteSettingsForm({ initial }: { initial: SiteSettings }) {
           }
         />
         {settings.officers.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nobody is listed yet, so the About page shows no committee.</p>
+          <p className="text-sm text-muted-foreground">Nobody is listed yet, so the home page and the About page show no committee.</p>
         ) : (
           <ul className="space-y-4">
             {settings.officers.map((officer, i) => (
@@ -158,7 +158,7 @@ export function SiteSettingsForm({ initial }: { initial: SiteSettings }) {
       <Card className="space-y-5 p-6">
         <CardHeader
           title="Sponsors"
-          description="Shown with their logos on the About page in this order. A logo on a white or clear background looks best."
+          description="Shown with their logos on the home page and the About page in this order. A logo on a white or clear background looks best."
           action={
             <Button variant="secondary" onClick={() => update({ sponsors: [...settings.sponsors, { name: "", logoKey: "", url: "" }] })}>
               <Plus size={16} aria-hidden /> Add
@@ -166,7 +166,7 @@ export function SiteSettingsForm({ initial }: { initial: SiteSettings }) {
           }
         />
         {settings.sponsors.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No sponsors are listed yet, so the About page has no sponsors section.</p>
+          <p className="text-sm text-muted-foreground">No sponsors are listed yet, so neither page has a sponsors section.</p>
         ) : (
           <ul className="space-y-4">
             {settings.sponsors.map((sponsor, i) => (

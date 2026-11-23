@@ -8,6 +8,7 @@ import { ExpandShowcase } from "@/components/site/ExpandShowcase";
 import { Hero } from "@/components/site/Hero";
 import { LiveRefresh } from "@/components/site/LiveRefresh";
 import { MatchCard, StatusChip, formatMatchTime, overs, resultLine } from "@/components/site/MatchCard";
+import { Committee, SponsorWall } from "@/components/site/People";
 import { CountUp, Parallax, Reveal } from "@/components/site/motion";
 import { formatDate } from "@/components/site/PageShell";
 import { isLocale } from "@/i18n/config";
@@ -37,6 +38,9 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
     { value: data.stats.students, label: t("stats.students") },
     { value: data.stats.matchesScored, label: t("stats.matches") },
   ].filter((s) => s.value > 0);
+  const grades = settings.kedaGrades.join(locale === "ta" ? ", " : " and ");
+  const kscCommittee = settings.officers.filter((o) => o.org === "ksc");
+  const kedaCommittee = settings.officers.filter((o) => o.org === "keda");
 
   return (
     <>
@@ -208,6 +212,37 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         </div>
       </section>
 
+      {/* The club's committee, led by whoever is first in Site details. Not rendered until someone is entered. */}
+      {kscCommittee.length > 0 && (
+        <section id="committee" className="border-t border-line py-(--section-y)">
+          <div className="container-x">
+            <Reveal className="mb-14 max-w-3xl md:mb-20">
+              <p className="eyebrow text-brand-text">{t("people.eyebrow")}</p>
+              <h2 className="display mt-4 h-section">{t("people.title")}</h2>
+              <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">{t("people.lead")}</p>
+            </Reveal>
+            <Committee
+              people={kscCommittee}
+              locale={locale}
+              facts={[
+                { label: t("about.founded"), value: CLUB.founded },
+                { label: t("stats.years"), value: data.stats.years },
+                ...(data.stats.members > 0 ? [{ label: t("stats.members"), value: data.stats.members }] : []),
+              ]}
+            >
+              <div className="mt-10 flex flex-wrap gap-x-5 gap-y-4 pl-1">
+                <a href={`${base}/membership`} className="btn btn-brand">
+                  <span>{t("club.join")}</span>
+                </a>
+                <a href={`${base}/about`} className="btn btn-ghost">
+                  <span>{t("club.more")}</span>
+                </a>
+              </div>
+            </Committee>
+          </div>
+        </section>
+      )}
+
       {/* KEDA — its own daylight theme, cut in on the crest's diagonal. */}
       <section id="education" className="theme-keda relative bg-bg text-fg [clip-path:polygon(0_5vw,100%_0,100%_100%,0_100%)]">
         <div className="container-x grid gap-14 pb-(--section-y) pt-[calc(var(--section-y)+5vw)] lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
@@ -230,7 +265,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                   </span>
                 )}
               </p>
-              <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">{t("keda.lead", { grades: settings.kedaGrades.join(locale === "ta" ? ", " : " and ") })}</p>
+              <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">{t("keda.lead", { grades })}</p>
             </Reveal>
 
             <ul className="mt-10 grid gap-x-8 gap-y-8 sm:grid-cols-3">
@@ -264,6 +299,26 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             <ContactPeople className="mt-12 max-w-2xl" titleClassName="text-brand-text" title={t("footer.contact")} people={settings.contacts.filter((c) => c.org === "keda")} whatsapp={t("about.whatsapp")} />
           </div>
         </div>
+
+        {/* KEDA's committee, in KEDA's colours: the offset block behind the lead portrait turns blue here. */}
+        {kedaCommittee.length > 0 && (
+          <div className="container-x border-t border-line pb-(--section-y) pt-(--section-y)">
+            <Reveal className="mb-14 max-w-3xl md:mb-20">
+              <p className="eyebrow text-brand-text">{t("people.kedaEyebrow")}</p>
+              <h2 className="display mt-4 h-section text-brand">{t("people.kedaTitle")}</h2>
+              <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">{t("people.kedaLead")}</p>
+            </Reveal>
+            <Committee
+              people={kedaCommittee}
+              locale={locale}
+              facts={[
+                { label: t("about.founded"), value: CLUB.keda.founded },
+                { label: t("about.grades"), value: grades },
+                ...(data.stats.students > 0 ? [{ label: t("stats.students"), value: data.stats.students }] : []),
+              ]}
+            />
+          </div>
+        )}
       </section>
 
       {/* News and gallery are always on the page: with something in them they are the showcase rows, without they say what will appear. */}
@@ -335,6 +390,20 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           </div>
         )}
       </section>
+
+      {/* Sponsors — left off the page until one is entered. */}
+      {settings.sponsors.length > 0 && (
+        <section id="sponsors" className="border-t border-line py-(--section-y)">
+          <div className="container-x">
+            <Reveal className="max-w-3xl">
+              <p className="eyebrow text-brand-text">{t("people.sponsorsEyebrow")}</p>
+              <h2 className="display mt-4 h-section">{t("about.sponsors")}</h2>
+              <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">{t("about.sponsorsLead")}</p>
+            </Reveal>
+            <SponsorWall sponsors={settings.sponsors} className="mt-12" />
+          </div>
+        </section>
+      )}
 
       {/* Install + notifications */}
       <section id="app" className="relative overflow-hidden bg-brand text-on-brand [clip-path:polygon(0_0,100%_5vw,100%_100%,0_100%)]">

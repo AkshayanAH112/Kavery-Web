@@ -97,6 +97,15 @@
     "join": "Become a member",
     "more": "About the club"
   },
+  "people": {
+    "eyebrow": "Committee",
+    "title": "The people who run the club",
+    "lead": "The committee members who look after Kavery Sports Club.",
+    "kedaEyebrow": "KEDA committee",
+    "kedaTitle": "The people behind the classes",
+    "kedaLead": "The committee that runs KEDA's free classes.",
+    "sponsorsEyebrow": "Sponsors"
+  },
   "keda": {
     "eyebrow": "Kavery Education Development Association · Since 2023",
     "title": "Free classes. Every child welcome.",
