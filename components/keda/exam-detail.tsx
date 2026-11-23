@@ -2,11 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import * as XLSX from "xlsx";
-import { Loader2, ArrowLeft, Search, Download, Upload, Pencil, Trash2, X, Globe, Lock, CalendarX, FileSpreadsheet } from "lucide-react";
-import { ConfirmDialog, AlertModal } from "@/components/console/confirm-dialog";
+import { Loader2, ArrowLeft, Search, Download, Upload, Globe, CalendarX, FileSpreadsheet } from "lucide-react";
+import { AlertModal } from "@/components/console/confirm-dialog";
 import { searchText } from "@/lib/keda/bamini";
 
+/**
+ * Mark entry for one paper of a test (Part 1 or Part 2, or a single paper):
+ * typed in row by row or uploaded from the Excel template, with absences carried
+ * over from that day's register as hints. The test's own page edits, publishes
+ * and deletes it, and shows the combined total.
+ */
 export default function ExamDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -16,10 +23,7 @@ export default function ExamDetailPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [entries, setEntries] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [publishing, setPublishing] = useState(false);
   // Absence hints the user has waved off. A hint is not a Marks row, so there is
   // nothing to delete when one is dismissed — it just stops being offered until
   // the next reload.
@@ -130,7 +134,7 @@ export default function ExamDetailPage() {
     const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Marks Template");
-    XLSX.writeFile(wb, `KEDA_${data.exam.subject}_Template.xlsx`);
+    XLSX.writeFile(wb, `KEDA_${fileTitle(data.exam)}_Template.xlsx`);
   };
 
   /**
@@ -166,7 +170,7 @@ export default function ExamDetailPage() {
     const absentCount = ranked.filter((r: any) => r.isRecorded && r.mark.isAbsent).length;
     const notRecordedCount = ranked.filter((r: any) => !r.isRecorded).length;
 
-    const examTitle = exam.name ? `${exam.subject} — ${exam.name}` : exam.subject;
+    const examTitle = paperTitle(exam);
     const examDate = new Date(exam.examDate).toLocaleDateString();
 
     const sheet: (string | number | null)[][] = [
@@ -208,9 +212,8 @@ export default function ExamDetailPage() {
     ws["!cols"] = [{ wch: 6 }, { wch: 18 }, { wch: 28 }, { wch: 28 }, { wch: 8 }, { wch: 8 }, { wch: 12 }, { wch: 14 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Results");
-    const safeSubject = exam.subject.replace(/[^a-z0-9]+/gi, "_");
     const isoDate = new Date(exam.examDate).toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `KEDA_${safeSubject}_${isoDate}_Results.xlsx`);
+    XLSX.writeFile(wb, `KEDA_${fileTitle(exam)}_${isoDate}_Results.xlsx`);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -279,40 +282,6 @@ export default function ExamDetailPage() {
     reader.readAsBinaryString(file);
   };
 
-  // Flips Exam.isPublished, the gate on the parent page. Nothing
-  // else about the exam changes — the roster stays fully editable after
-  // publishing, and a correction made later is live the moment it is saved.
-  const togglePublish = async () => {
-    setPublishing(true);
-    try {
-      const res = await fetch(`/api/exams/${examId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isPublished: !data.exam.isPublished }),
-      });
-      if (!res.ok) {
-        const err = await res.json() as any;
-        setError(err.error);
-        return;
-      }
-      fetchData();
-    } finally {
-      setPublishing(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    setConfirmDeleteOpen(false);
-    const res = await fetch(`/api/exams/${examId}`, { method: "DELETE" });
-    if (res.ok) {
-      router.push("/console/exams");
-    } else {
-      const err = await res.json() as any;
-      setError(err.error);
-    }
-  };
-  const recordedForDeleteCount = data?.roster?.filter((r: any) => r.isRecorded).length ?? 0;
-
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" size={40} /></div>;
   if (!data?.exam) return <div className="p-12 text-center text-muted-foreground">Exam not found</div>;
 
@@ -336,14 +305,24 @@ export default function ExamDetailPage() {
 
   return (
     <div className="space-y-6">
-      <button onClick={() => router.push("/console/exams")} className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground">
-        <ArrowLeft size={20} /> Back to Exams
+      <button
+        onClick={() => router.push(exam.testId ? `/console/exams/${exam.testId}` : "/console/exams")}
+        className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft size={20} /> Back to {exam.name ?? "Exams"}
       </button>
 
       <div className="flex flex-col justify-between gap-6 rounded-lg border border-border bg-card p-6 shadow-xs md:flex-row md:items-center md:p-8">
         <div>
-          <span className="mb-3 inline-block rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">Grade {exam.grade}</span>
-          <h1 className="text-2xl text-foreground md:text-3xl">{exam.name ? `${exam.subject} — ${exam.name}` : exam.subject}</h1>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">Grade {exam.grade}</span>
+            {exam.isPublished && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                <Globe size={12} aria-hidden /> Public: corrections show to parents when saved
+              </span>
+            )}
+          </div>
+          <h1 className="text-2xl text-foreground md:text-3xl">{paperTitle(exam)}</h1>
           <p className="mt-1 text-muted-foreground">
             {exam.batchId?.name} · {new Date(exam.examDate).toLocaleDateString()} · Out of {exam.maxMarks}
           </p>
@@ -356,63 +335,16 @@ export default function ExamDetailPage() {
             </span>
             <span className="mt-1 text-xs font-bold uppercase text-primary">Recorded</span>
           </div>
-          <button onClick={() => setIsEditOpen(true)} className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 font-medium text-foreground transition-colors hover:bg-muted">
-            <Pencil size={16} /> Edit
-          </button>
-          <button onClick={() => setConfirmDeleteOpen(true)} className="flex items-center gap-1.5 rounded-lg border border-destructive/30 px-3 py-2 font-medium text-destructive transition-colors hover:bg-destructive/10">
-            <Trash2 size={16} /> Delete
-          </button>
+          {/* The other part of the same test, one click away. */}
+          {data.parts?.length > 1 &&
+            data.parts
+              .filter((p: any) => p._id !== exam._id)
+              .map((p: any) => (
+                <Link key={p._id} href={`/console/exams/paper/${p._id}`} className="rounded-lg border border-border px-3 py-2 font-medium text-foreground transition-colors hover:bg-muted">
+                  {p.label} marks
+                </Link>
+              ))}
         </div>
-      </div>
-
-      {/* The gate on the parent page. Unpublished is the default and
-          the safe state: marks are typed and corrected over several days, and
-          this is what keeps a half-entered exam off the public site meanwhile. */}
-      <div
-        className={`flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between ${
-          exam.isPublished ? "border-primary/30 bg-primary/5" : "border-border bg-muted/40"
-        }`}
-      >
-        <div className="flex items-start gap-3">
-          {exam.isPublished ? (
-            <Globe size={20} className="mt-0.5 shrink-0 text-primary" />
-          ) : (
-            <Lock size={20} className="mt-0.5 shrink-0 text-muted-foreground" />
-          )}
-          <div>
-            <p className="font-bold text-foreground">
-              {exam.isPublished ? "Results are public" : "Results are not public"}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {exam.isPublished
-                ? `Anyone with this student's registration number can see these marks on the public Results page${
-                    exam.publishedAt ? ` · published ${new Date(exam.publishedAt).toLocaleDateString()}` : ""
-                  }.`
-                : "Nothing here is visible on the public site yet. Publish once every mark is entered and checked."}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={togglePublish}
-          disabled={publishing}
-          className={`flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-4 py-2 font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-            exam.isPublished
-              ? "border border-border text-foreground hover:bg-muted"
-              : "bg-primary text-primary-foreground hover:bg-primary/90"
-          }`}
-        >
-          {publishing ? (
-            <Loader2 className="animate-spin" size={16} />
-          ) : exam.isPublished ? (
-            <>
-              <Lock size={16} /> Unpublish
-            </>
-          ) : (
-            <>
-              <Globe size={16} /> Publish Results
-            </>
-          )}
-        </button>
       </div>
 
       {/* Carried over from the class register for this exam's date. Only an
@@ -577,19 +509,6 @@ export default function ExamDetailPage() {
         </div>
       </div>
 
-      {isEditOpen && (
-        <EditExamModal exam={exam} onClose={() => setIsEditOpen(false)} onSaved={() => { setIsEditOpen(false); fetchData(); }} />
-      )}
-
-      <ConfirmDialog
-        open={confirmDeleteOpen}
-        onClose={() => setConfirmDeleteOpen(false)}
-        onConfirm={handleDelete}
-        title="Delete this exam?"
-        description={`This will also delete its ${recordedForDeleteCount} recorded mark(s). This cannot be undone.`}
-        confirmLabel="Delete"
-        tone="danger"
-      />
       <AlertModal open={error !== null} onClose={() => setError(null)} title="Something went wrong" description={error ?? undefined} tone="danger" />
     </div>
   );
@@ -629,73 +548,6 @@ function buildRanking(roster: any[]) {
   return { scored, rankByStudentId, rankedRoster };
 }
 
-function EditExamModal({ exam, onClose, onSaved }: { exam: any; onClose: () => void; onSaved: () => void }) {
-  const [subject, setSubject] = useState(exam.subject);
-  const [name, setName] = useState(exam.name ?? "");
-  const [maxMarks, setMaxMarks] = useState(exam.maxMarks);
-  const [examDate, setExamDate] = useState(new Date(exam.examDate).toISOString().slice(0, 10));
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/exams/${exam._id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject, name: name || undefined, maxMarks, examDate }),
-      });
-      if (res.ok) onSaved();
-      else {
-        const err = await res.json() as any;
-        setError(err.error);
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-2xl sm:p-8" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-6 flex items-start justify-between">
-          <h2 className="text-xl font-bold text-foreground">Edit Exam</h2>
-          <button onClick={onClose} className="cursor-pointer text-muted-foreground hover:text-foreground">
-            <X size={20} />
-          </button>
-        </div>
-        <form onSubmit={save} className="space-y-4">
-          <div>
-            <label className="field-label">Subject</label>
-            <input required className="field" value={subject} onChange={(e) => setSubject(e.target.value)} />
-          </div>
-          <div>
-            <label className="field-label">Label (optional)</label>
-            <input className="field" value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="field-label">Exam Date</label>
-              <input type="date" required className="field" value={examDate} onChange={(e) => setExamDate(e.target.value)} />
-            </div>
-            <div>
-              <label className="field-label">Max Marks</label>
-              <input type="number" min="1" required className="field" value={maxMarks} onChange={(e) => setMaxMarks(Number(e.target.value))} />
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground">Changing Max Marks does not rescale marks already entered.</p>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-border bg-card py-2 font-medium text-foreground transition-colors hover:bg-muted">
-              Cancel
-            </button>
-            <button type="submit" disabled={saving} className="flex-1 rounded-xl bg-primary py-2 font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50">
-              {saving ? <Loader2 className="mx-auto animate-spin" size={18} /> : "Save"}
-            </button>
-          </div>
-        </form>
-      </div>
-      <AlertModal open={error !== null} onClose={() => setError(null)} title="Failed to save" description={error ?? undefined} tone="danger" />
-    </div>
-  );
-}
+/** "Term test 3 — Part 1", or a single paper's "Quiz — Mathematics". */
+const paperTitle = (exam: any) => (exam.name ? `${exam.name} — ${exam.label ?? exam.subject}` : exam.label ?? exam.subject);
+const fileTitle = (exam: any) => paperTitle(exam).replace(/[^a-z0-9]+/gi, "_");

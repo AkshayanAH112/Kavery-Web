@@ -14,7 +14,8 @@ export const metadata: Metadata = {
   icons: SITE_ICONS,
 };
 
-export const viewport: Viewport = { themeColor: "#111113" };
+// `cover` makes env(safe-area-inset-*) real, so the phone's bottom bar clears the home indicator.
+export const viewport: Viewport = { themeColor: "#111113", viewportFit: "cover" };
 
 // Applies the saved theme before the first paint, so a dark-mode user never sees
 // a white flash. Must match the key used by darkFlag in components/console/Shell.tsx.
@@ -28,7 +29,8 @@ export default function ConsoleRootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="theme-console min-h-screen">
+      {/* With `cover`, a phone on its side would put the edges under the notch; the side insets keep them clear. */}
+      <body className="theme-console min-h-screen pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
         {children}
         {/* Reads the address bar, so it sits in its own boundary and never holds a page back. */}
         <Suspense fallback={null}>

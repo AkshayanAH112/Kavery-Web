@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Lightbox } from "@/components/site/Lightbox";
-import { PageShell, formatDate } from "@/components/site/PageShell";
+import { PageShell, formatDate, shareLabels } from "@/components/site/PageShell";
+import { ShareButton } from "@/components/site/ShareButton";
 import { getPublishedPost } from "@/lib/content/public";
 import { htmlToText } from "@/lib/content/sanitize";
 
@@ -84,9 +85,12 @@ export default async function PostPage({ params }: PageProps<"/[locale]/news/[sl
         title={post.title}
         lead={post.excerpt ?? undefined}
       >
-      <p className="-mt-4 mb-8 text-sm text-muted-foreground">
-        {post.publishedAt && formatDate(post.publishedAt, locale)} · {post.author}
-      </p>
+      <div className="-mt-4 mb-8 flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
+        <p className="text-sm text-muted-foreground">
+          {post.publishedAt && formatDate(post.publishedAt, locale)} · {post.author}
+        </p>
+        <ShareButton path={`/${locale}/news/${slug}`} title={post.title} labels={shareLabels(t)} />
+      </div>
       {post.coverUrl && (
         // eslint-disable-next-line @next/next/no-img-element -- already resized before upload
         <img src={post.coverUrl} alt={post.title} className="mb-10 aspect-[16/9] w-full rounded-[var(--card-radius)] object-cover" />

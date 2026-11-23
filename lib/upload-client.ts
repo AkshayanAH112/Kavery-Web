@@ -58,7 +58,7 @@ export async function uploadMany<T>(files: File[], upload: (file: File) => Promi
 }
 
 /** Shrinks, then uploads to R2. Throws with the server's own message on failure. */
-export async function uploadImage(file: File, folder: "news" | "gallery" | "cricket"): Promise<{ url: string; publicId: string }> {
+export async function uploadImage(file: File, folder: "news" | "gallery" | "cricket" | "site"): Promise<{ url: string; publicId: string }> {
   const body = new FormData();
   body.append("file", await shrinkImage(file));
   body.append("folder", folder);

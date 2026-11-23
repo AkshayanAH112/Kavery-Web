@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { OrgTabs } from "@/components/site/OrgTabs";
-import { PageShell } from "@/components/site/PageShell";
+import { PageShell, shareLabels } from "@/components/site/PageShell";
+import { ShareButton } from "@/components/site/ShareButton";
 import { getGallery, orgFilter } from "@/lib/content/public";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/gallery">): Promise<Metadata> {
@@ -44,7 +45,12 @@ export default async function GalleryPage({ params, searchParams }: PageProps<"/
   const [t, entries] = await Promise.all([getTranslations(), getGallery(org)]);
 
   return (
-    <PageShell crumbs={[{ label: t("nav.home"), href: `/${locale}` }, { label: t("gallery.eyebrow") }]} eyebrow={t("gallery.eyebrow")} title={t("gallery.title")}>
+    <PageShell
+      crumbs={[{ label: t("nav.home"), href: `/${locale}` }, { label: t("gallery.eyebrow") }]}
+      eyebrow={t("gallery.eyebrow")}
+      title={t("gallery.title")}
+      actions={<ShareButton path={`/${locale}/gallery${org ? `?org=${org}` : ""}`} title={t("gallery.title")} labels={shareLabels(t)} />}
+    >
       <OrgTabs base={`/${locale}/gallery`} current={org} labels={{ all: t("news.tabAll"), ksc: t("news.ksc"), keda: t("news.keda") }} />
       {entries.length === 0 ? (
         <p className="live-card p-8 text-muted-foreground">{t("gallery.empty")}</p>

@@ -141,7 +141,7 @@ function BatchesPageContent() {
       {/* Modals... */}
       {isBatchModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border p-6 sm:p-8 rounded-3xl max-w-sm w-full shadow-2xl">
+          <div className="bg-card border border-border p-6 sm:p-8 rounded-3xl max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto shadow-2xl">
             <h2 className="text-xl font-bold mb-6 text-foreground">New Batch</h2>
             <form onSubmit={createBatch} className="space-y-4">
               <div>
@@ -188,7 +188,7 @@ function BatchesPageContent() {
 
       {isClassModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border p-6 sm:p-8 rounded-3xl max-w-sm w-full shadow-2xl">
+          <div className="bg-card border border-border p-6 sm:p-8 rounded-3xl max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto shadow-2xl">
             <h2 className="text-xl font-bold mb-6 text-foreground">New Class Session</h2>
             <form onSubmit={createClass} className="space-y-4">
               <div>

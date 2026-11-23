@@ -13,7 +13,7 @@ import { getDb, schema } from "@/lib/db";
 import { slugify } from "@/lib/slug";
 import type { MatchStatus } from "./engine";
 import type { InningsState, MatchResult } from "./scoring";
-import { matchView, type MatchDoc, type PlayerDoc, type TeamDoc, type TeamMap, type TournamentDoc } from "./view";
+import { matchCard, matchView, type MatchDoc, type PlayerDoc, type TeamDoc, type TeamMap, type TournamentDoc } from "./view";
 
 const { cricketTeams: T, cricketPlayers: P, cricketTournaments: TR, cricketMatches: M } = schema;
 
@@ -269,6 +269,33 @@ export const matchInTournament = (tournamentId: string) => and(eq(M.tournamentId
 /** Matches whose squads name this player. Squads are JSON arrays, hence json_each. */
 export const matchNamesPlayer = (playerId: string) =>
   sql`(EXISTS (SELECT 1 FROM json_each(${M.squadA}) WHERE value = ${playerId}) OR EXISTS (SELECT 1 FROM json_each(${M.squadB}) WHERE value = ${playerId}))`;
+
+/** What /live shows: matches in play, fixtures, results and tournaments. Read by its API route and its page. */
+export async function liveHomePayload() {
+  const tournaments = await loadTournaments(publishedTournamentsWhere);
+  const visible = publicMatchWhere([...tournaments.keys()]);
+  const [live, upcoming, results, teams] = await Promise.all([
+    findMatchCards(and(visible, matchStatusIn(["live", "innings_break"])), "oldest", 20),
+    findMatchCards(and(visible, matchStatusIn(["upcoming"])), "oldest", 12),
+    findMatchCards(and(visible, matchStatusIn(["completed", "abandoned"])), "newest", 12),
+    loadTeams(),
+  ]);
+  const card = (m: (typeof live)[number]) => matchCard(m, teams, m.tournamentId ? tournaments.get(m.tournamentId) : null);
+  return {
+    live: live.map(card),
+    upcoming: upcoming.map(card),
+    results: results.map(card),
+    tournaments: [...tournaments.values()].map((t) => ({ name: t.name, slug: t.slug, season: t.season || null, status: t.status, teamCount: t.teams.length })),
+  };
+}
+
+/** One public match as its page and API route show it, or null if it is not public. */
+export async function publicMatchPayload(id: string) {
+  const found = await getPublicMatch(id);
+  if (!found) return null;
+  const teams = await loadTeams([found.match.teamA, found.match.teamB]);
+  return { match: matchView(found.match, teams, found.tournament) };
+}
 
 /** A public match by id, or null if it is hidden or its tournament is unpublished. */
 export async function getPublicMatch(id: string) {

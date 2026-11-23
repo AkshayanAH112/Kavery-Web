@@ -16,6 +16,7 @@ import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb, getSecret, schema } from "@/lib/db";
+import { papersForStudent } from "@/lib/keda/online";
 import { studentResults } from "@/lib/keda/results";
 import type { StudentRow } from "@/lib/keda/server";
 import { normalizePhone } from "@/lib/membership/rules";
@@ -54,6 +55,13 @@ export async function getParentChildren(): Promise<StudentRow[]> {
   if (ids.length === 0) return [];
   const rows = await getDb().select().from(S).where(and(inArray(S.id, ids), eq(S.isActive, true)));
   return ids.map((id) => rows.find((r) => r.id === id)).filter((r): r is StudentRow => !!r);
+}
+
+/** One of this browser's children, named by index number — how the exam page says which child is sitting. */
+export async function signedInChild(registrationNumber: unknown): Promise<StudentRow | null> {
+  const number = indexNumber(registrationNumber);
+  if (!number) return null;
+  return (await getParentChildren()).find((s) => s.registrationNumber === number) ?? null;
 }
 
 /** Adds a child to this browser's cookie (most recent first). */
@@ -127,21 +135,32 @@ async function attendanceFor(student: StudentRow) {
   };
 }
 
-type Notice = { kind: "leave"; date: string; leaveCount: number } | { kind: "result"; date: string; subject: string; name: string | null };
+type Notice = { kind: "leave"; date: string; leaveCount: number } | { kind: "result"; date: string; name: string };
 
 /** Everything one child's parent sees. Assembled field by field; nothing from the family's own record goes back out. */
 export async function childView(student: StudentRow) {
   const db = getDb();
-  const [{ published, ...results }, attendance, alerts] = await Promise.all([studentResults(student), attendanceFor(student), db.select().from(L).where(eq(L.studentId, student.id)).orderBy(desc(L.createdAt)).limit(6)]);
+  const [{ published, ...results }, attendance, alerts, online] = await Promise.all([
+    studentResults(student),
+    attendanceFor(student),
+    db.select().from(L).where(eq(L.studentId, student.id)).orderBy(desc(L.createdAt)).limit(6),
+    papersForStudent(student),
+  ]);
 
   const notices: Notice[] = [
     ...alerts.map((a) => ({ kind: "leave" as const, date: a.createdAt.toISOString(), leaveCount: a.leaveCount })),
-    ...published.map((e) => ({ kind: "result" as const, date: (e.publishedAt ?? e.examDate).toISOString(), subject: e.subject, name: e.name ?? null })),
+    ...published.map((t) => ({ kind: "result" as const, date: (t.publishedAt ?? t.createdAt).toISOString(), name: t.name })),
   ]
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 10);
 
-  return { ...results, attendance, notices };
+  // The photo is served only to a browser whose cookie names this child (/api/public/parents/photo).
+  const photoUrl =
+    student.photoKey && student.registrationNumber
+      ? `/api/public/parents/photo?student=${encodeURIComponent(student.registrationNumber)}&v=${student.photoKey.slice(-12, -4)}`
+      : null;
+
+  return { ...results, photoUrl, attendance, notices, online };
 }
 
 /** KEDA's own published posts: the announcements every parent sees. */

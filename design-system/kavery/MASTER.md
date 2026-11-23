@@ -181,11 +181,33 @@ text and a `Badge` or figure.
 **Console shell** (`components/console/Shell.tsx`) — sidebar on the page background with small-caps
 group labels and an ink pill for the current page; the working area is an inset rounded panel with a
 sticky top bar (sidebar toggle, page search, theme toggle, account menu). The sidebar collapses to
-icons on desktop and becomes a drawer on phones.
+icons on desktop. Below `lg` (1024px) there is no sidebar: a **floating bottom bar** (`MobileNav`) holds
+the role's main pages (`mobileTabs()` in `lib/console-nav.ts`), the scanner raised in the middle when
+the role can scan, and "More", which opens a bottom sheet of every page as an icon grid. The current
+tab's icon sits in a filled ink pill; "More" lights up when the page is only in the sheet. The bar sits
+above the home indicator (`viewport-fit=cover`, `env(safe-area-inset-bottom)`), steps aside while a text
+field has focus, and stays under every dialog (z-30).
 
 **Console charts** (`components/console/charts.tsx`) — hand-written SVG, no chart library: stacked
 rounded bars and a donut. Every chart has a text summary for screen readers and its numbers repeated as
 text beside it. On a phone a chart scrolls sideways rather than shrinking its labels.
+
+**Match centre board** (`components/live/MatchCenter.tsx`) — the match page opens on `.match-stage`, a
+floodlit ground drawn in gradients (two corner lights, the outfield in mown stripes from `--grass-600/900`,
+used nowhere else). On it the two sides face each other: crest, name, and the score over a bar in the
+team's colour. `.glass` is the frosted panel used on the stage and for the summary panels (match statistics
+team against team, top performers as paper-white team bars). A team colour shown on ink goes through
+`colourOnInk()` (`lib/cricket/match-stats.ts`), which lifts a dark club colour until it reads.
+
+**Match images** (`components/live/summary-image.ts`) — "Summary" (1080×1350) and "Board" (1920×1080),
+drawn on a canvas in the browser like the membership card, from the public match page and the scorer's
+console. The summary's header is the one place outside the hero where the sashes appear: an image shared
+on its own carries the club's mark with it.
+
+**Scorer's sheet** (`components/cricket/score-sheet.tsx`, `.sheet*` in `globals.css`) — the club's paper
+form, A4 landscape, one page per innings, at `/console/cricket/matches/[id]/sheet` (filled in) and
+`/console/cricket/sheet` (blank). The form prints black; filled-in values are "pen", the crest blue. It
+keeps fixed paper colours in both console themes.
 
 **Match card** — status chip (LIVE red with pulsing dot / UPCOMING yellow / RESULT outline), two team
 rows with a colour bar and `runs/wickets (overs)` in display numerals, a footer with result or time.
@@ -199,8 +221,10 @@ that is not core to the page (news, gallery, stats at zero) is **not rendered at
 
 - Public site: `container-x` (82rem max, fluid gutter), sections separated by `--section-y`.
 - Navigation links collapse to the menu below `xl` — in Tamil they stop fitting much earlier than in English.
-- Console: ink sidebar on desktop, a horizontally scrolling strip on phones (scoring and scanning are
-  phone jobs). Content area has no max width; tables need the room.
+- Console: sidebar on desktop, the floating bottom bar on phones and tablets (scoring and scanning are
+  phone jobs). Content area has no max width; tables need the room. A console grid that holds a chart
+  or table says `grid-cols-1`: the implicit track grows to its content on a phone instead of letting it
+  scroll, and the whole page then scrolls sideways.
 - Breakpoints to check: 375, 768, 1024, 1440. No horizontal page scroll at any of them.
 
 ## Do not

@@ -6,13 +6,17 @@ import { Loader2, WifiOff } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import type { BallLabel, MatchStatus } from "@/lib/cricket/engine";
 import type { MatchCard, TeamBrief } from "@/lib/cricket/view";
+import { TIME_ZONE } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
 type PollState = "loading" | "ok" | "not_found" | "error";
 
 /**
- * Fetches `url` and keeps re-fetching it. `intervalFor` is asked after every
- * response how long to wait for the next one, and returning null stops the
+ * Fetches `url` and keeps re-fetching it, starting from `initial` when the
+ * server rendered the page with the data already in it (so search engines and
+ * a visitor without JavaScript see the scores, not "Loading"). `intervalFor`
+ * is asked after every response how long to wait for the next one, and
+ * returning null stops the
  * polling — which is how a finished match stops costing requests while a live
  * one keeps ticking.
  *
@@ -23,11 +27,12 @@ type PollState = "loading" | "ok" | "not_found" | "error";
  * without it Chrome honours stale-while-revalidate itself and shows each poll
  * one response late.
  */
-export function usePolling<T>(url: string, intervalFor: (data: T | null) => number | null) {
-  const [data, setData] = useState<T | null>(null);
-  const [state, setState] = useState<PollState>("loading");
+export function usePolling<T>(url: string, intervalFor: (data: T | null) => number | null, initial: T | null = null) {
+  const [data, setData] = useState<T | null>(initial);
+  const [state, setState] = useState<PollState>(initial ? "ok" : "loading");
   const [offline, setOffline] = useState(false);
   const intervalRef = useRef(intervalFor);
+  const initialRef = useRef(initial);
 
   useEffect(() => {
     intervalRef.current = intervalFor;
@@ -36,8 +41,9 @@ export function usePolling<T>(url: string, intervalFor: (data: T | null) => numb
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    let latest: T | null = null;
-    let fetched = false;
+    // The server already rendered `initial`, so the first request waits its turn.
+    let latest: T | null = initialRef.current;
+    let fetched = latest !== null;
 
     const schedule = () => {
       const ms = intervalRef.current(latest);
@@ -75,7 +81,8 @@ export function usePolling<T>(url: string, intervalFor: (data: T | null) => numb
       tick();
     };
 
-    tick();
+    if (fetched) schedule();
+    else tick();
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
@@ -196,14 +203,15 @@ export function useResultText() {
 }
 
 // Day-first and identical in both locales, like the Results page: Tamil month
-// names would change the width of every card.
+// names would change the width of every card. Always the ground's time zone:
+// the server (UTC) renders these first, and the browser must agree with it.
 export const formatMatchDate = (value?: string | null) =>
   value
-    ? new Date(value).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+    ? new Date(value).toLocaleString("en-GB", { timeZone: TIME_ZONE, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
     : null;
 
 export const formatDay = (value?: string | null) =>
-  value ? new Date(value).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : null;
+  value ? new Date(value).toLocaleDateString("en-GB", { timeZone: TIME_ZONE, day: "numeric", month: "short", year: "numeric" }) : null;
 
 /** One match as a tappable card — used on the home, tournament and team pages. */
 export function MatchCardLink({ match, showTournament = true }: { match: MatchCard; showTournament?: boolean }) {

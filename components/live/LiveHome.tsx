@@ -6,19 +6,19 @@ import { useLocale, useTranslations } from "next-intl";
 import type { MatchCard } from "@/lib/cricket/view";
 import { EmptyNote, MatchCardLink, PollStatus, SectionTitle, usePolling } from "./shared";
 
-type Payload = {
+export type LiveHomePayload = {
   live: MatchCard[];
   upcoming: MatchCard[];
   results: MatchCard[];
   tournaments: { name: string; slug: string; season: string | null; status: string; teamCount: number }[];
 };
 
-export default function LiveHome() {
+export default function LiveHome({ initial }: { initial?: LiveHomePayload | null }) {
   const t = useTranslations("Live");
   const locale = useLocale();
   // Quicker while something is being played, so a wicket shows on the home
   // cards without the visitor opening the match.
-  const { data, state, offline } = usePolling<Payload>("/api/public/cricket", (d) => (d?.live.length ? 10_000 : 30_000));
+  const { data, state, offline } = usePolling<LiveHomePayload>("/api/public/cricket", (d) => (d?.live.length ? 10_000 : 30_000), initial);
 
   const status = <PollStatus state={state} offline={offline} notFoundKey="not_found_match" />;
   if (!data) return status;

@@ -1,7 +1,7 @@
 import { and, desc, eq, gte } from "drizzle-orm";
 import { authorize } from "@/lib/auth/guard";
 import { getDb, schema } from "@/lib/db";
-import { PHONE_ERROR, batchMap, getBatch, isGrade, isRegistrationNumber, isValidLocalPhone, newQrCode, nextRegistrationNumber, parseDate, readBody, reserveRegistrationNumber, studentDoc, text } from "@/lib/keda/server";
+import { PHONE_ERROR, batchMap, getBatch, isGrade, isRegistrationNumber, isValidLocalPhone, newQrCode, nextRegistrationNumber, normalizeRegistrationNumber, parseDate, readBody, reserveRegistrationNumber, studentDoc, text } from "@/lib/keda/server";
 
 const S = schema.students;
 
@@ -46,10 +46,11 @@ export async function POST(request: Request) {
   const db = getDb();
   // A number already issued on paper can be entered as-is; otherwise the next one for the batch's year is taken.
   let registrationNumber: string;
-  if (data.registrationNumber) {
-    if (!isRegistrationNumber(data.registrationNumber)) return fail("Index number must look like KEDA/27/1000");
-    if (await db.query.students.findFirst({ where: eq(S.registrationNumber, data.registrationNumber) })) return fail("That index number is already in use", 409);
-    registrationNumber = data.registrationNumber;
+  const typed = normalizeRegistrationNumber(data.registrationNumber);
+  if (typed) {
+    if (!isRegistrationNumber(typed)) return fail("Index number must look like KEDA/27/1000");
+    if (await db.query.students.findFirst({ where: eq(S.registrationNumber, typed) })) return fail(`${typed} is already in use by another student`, 409);
+    registrationNumber = typed;
     await reserveRegistrationNumber(registrationNumber);
   } else {
     registrationNumber = await nextRegistrationNumber(batch.year);

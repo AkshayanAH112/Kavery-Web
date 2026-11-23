@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { Download, Printer } from "lucide-react";
+import { Download, Printer, Share2 } from "lucide-react";
 
 type CardBatch = { name?: string; year?: number };
 type CardStudent = { name: string; qrCode: string; registrationNumber?: string; grade: number; batchId?: CardBatch | string; photoUrl?: string };
@@ -77,6 +77,22 @@ function layoutDetails(ctx: CanvasRenderingContext2D, name: string, indexNumber:
   return { size: 22, lines, height: heightOf(lines, 22) };
 }
 
+/** Resolves to null instead of waiting forever: a font or photo that never arrives must not stop the card. */
+function within<T>(promise: Promise<T>, ms: number) {
+  return Promise.race([promise.catch(() => null), new Promise<null>((resolve) => setTimeout(() => resolve(null), ms))]);
+}
+
+/** `roundRect` arrived in Safari 16; older iPhones still open the console. */
+function roundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  if (typeof ctx.roundRect === "function") return ctx.roundRect(x, y, w, h, r);
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
 /** Overlay the student's details on the supplied artwork, retaining its photo and QR frames. */
 async function drawCard(canvas: HTMLCanvasElement, student: CardStudent) {
   const ctx = canvas.getContext("2d");
@@ -91,11 +107,17 @@ async function drawCard(canvas: HTMLCanvasElement, student: CardStudent) {
     loadImage("/brand/keda-id-card-template.png"),
     QRCode.toDataURL(student.qrCode, { margin: 4, scale: 12, errorCorrectionLevel: "M" }).then(loadImage),
     // The signed-in photo route is on this origin, so downloads remain exportable.
-    student.photoUrl ? loadImage(student.photoUrl).catch(() => null) : null,
-    document.fonts.load(`700 38px ${tamilFamily}`, `${student.name} பெயர் சுட்டெண்`),
-    document.fonts.load(`600 22px ${tamilFamily}`, "பெயர் சுட்டெண்"),
-    document.fonts.load(`700 34px ${englishFamily}`, `${indexNumber} ${batchName}`),
-    document.fonts.load(`600 22px ${englishFamily}`, "Batch"),
+    student.photoUrl ? within(loadImage(student.photoUrl), 15000) : null,
+    // Without the web fonts the card falls back to the system's; that is better than no card.
+    within(
+      Promise.all([
+        document.fonts.load(`700 38px ${tamilFamily}`, `${student.name} பெயர் சுட்டெண்`),
+        document.fonts.load(`600 22px ${tamilFamily}`, "பெயர் சுட்டெண்"),
+        document.fonts.load(`700 34px ${englishFamily}`, `${indexNumber} ${batchName}`),
+        document.fonts.load(`600 22px ${englishFamily}`, "Batch"),
+      ]),
+      5000,
+    ),
   ]);
 
   ctx.drawImage(template, 0, 0, W, H);
@@ -107,7 +129,7 @@ async function drawCard(canvas: HTMLCanvasElement, student: CardStudent) {
     const sw = width / scale, sh = height / scale;
     ctx.save();
     ctx.beginPath();
-    ctx.roundRect(x, y, width, height, 12);
+    roundedRect(ctx, x, y, width, height, 12);
     ctx.clip();
     ctx.drawImage(photo, (photo.width - sw) / 2, (photo.height - sh) / 2, sw, sh, x, y, width, height);
     ctx.restore();
@@ -137,44 +159,79 @@ async function drawCard(canvas: HTMLCanvasElement, student: CardStudent) {
   }
 }
 
+function toBlob(canvas: HTMLCanvasElement) {
+  return new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Canvas export failed"))), "image/png"));
+}
+
 /**
  * Shared by the students list ("Get ID" per row) and the student page, so a
  * card can be re-issued any time after registration, not only once.
+ *
+ * The finished card is shown as an image, not a canvas, so on a phone it can be
+ * long-pressed and saved. A download link does nothing in an installed iPhone app
+ * and `window.print()` is ignored there, so phones save through the share sheet.
  */
 export function StudentIdCardModal({ student, onClose }: { student: CardStudent; onClose: () => void }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [rendered, setRendered] = useState<{ student: CardStudent; status: "ready" | "error" } | null>(null);
+  const [rendered, setRendered] = useState<{ student: CardStudent; blob?: Blob; url?: string; status: "ready" | "error" } | null>(null);
+  const [shareFailed, setShareFailed] = useState(false);
+  const [canPrint, setCanPrint] = useState(true);
+  const [phone, setPhone] = useState(false);
   const ready = rendered?.student === student && rendered.status === "ready";
   const failed = rendered?.student === student && rendered.status === "error";
+  const fileName = `${student.name.replace(/\s+/g, "_")}_KEDA_card.png`;
+
+  useEffect(() => {
+    setPhone(window.matchMedia("(pointer: coarse)").matches);
+    setCanPrint(!(navigator as Navigator & { standalone?: boolean }).standalone);
+  }, []);
 
   useEffect(() => {
     let active = true;
+    let url: string | undefined;
     // Render offscreen so a late result cannot overwrite a newer student's card.
     const draft = document.createElement("canvas");
     draft.width = W;
     draft.height = H;
     drawCard(draft, student)
-      .then(() => {
+      .then(() => toBlob(draft))
+      .then((blob) => {
         if (!active) return;
-        const ctx = canvasRef.current?.getContext("2d");
-        if (!ctx) throw new Error("Canvas is unavailable");
-        ctx.clearRect(0, 0, W, H);
-        ctx.drawImage(draft, 0, 0);
-        setRendered({ student, status: "ready" });
+        url = URL.createObjectURL(blob);
+        setRendered({ student, blob, url, status: "ready" });
       })
-      .catch(() => active && setRendered({ student, status: "error" }));
+      .catch((e) => {
+        console.error("ID card", e);
+        if (active) setRendered({ student, status: "error" });
+      });
     return () => {
       active = false;
+      if (url) URL.revokeObjectURL(url);
     };
   }, [student]);
 
-  const download = () => {
-    const canvas = canvasRef.current;
-    if (!canvas || !ready) return;
+  const saveFile = () => {
+    if (!ready || !rendered.url) return;
     const link = document.createElement("a");
-    link.download = `${student.name.replace(/\s+/g, "_")}_KEDA_card.png`;
-    link.href = canvas.toDataURL("image/png");
+    link.download = fileName;
+    link.href = rendered.url;
+    document.body.appendChild(link);
     link.click();
+    link.remove();
+  };
+
+  const save = async () => {
+    if (!ready || !rendered.blob) return;
+    const file = new File([rendered.blob], fileName, { type: "image/png" });
+    if (phone && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: student.name });
+        return;
+      } catch (e) {
+        if ((e as Error).name === "AbortError") return; // the share sheet was closed
+        setShareFailed(true);
+      }
+    }
+    saveFile();
   };
 
   return (
@@ -185,23 +242,34 @@ export function StudentIdCardModal({ student, onClose }: { student: CardStudent;
           __html: `@media print { body * { visibility: hidden; } #printable-id-card { visibility: ${ready ? "visible" : "hidden"}; position: fixed; left: 0; top: 0; width: 85.6mm; height: auto; border: 0; border-radius: 0; } }`,
         }}
       />
-      <div role="dialog" aria-modal="true" aria-label={`${student.name} - மாணவர் அடையாள அட்டை`} className="w-full max-w-lg rounded-(--card-radius) border border-border bg-card p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-5 flex items-center justify-between gap-3 print:hidden">
+      <div role="dialog" aria-modal="true" aria-label={`${student.name} - மாணவர் அடையாள அட்டை`} className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-(--card-radius) border border-border bg-card p-4 shadow-2xl sm:p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 print:hidden">
           <h3 className="text-lg font-semibold text-foreground">மாணவர் அடையாள அட்டை</h3>
           <div className="flex gap-2">
-            <button type="button" disabled={!ready} onClick={() => window.print()} className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-semibold hover:bg-muted disabled:opacity-50">
-              <Printer size={15} aria-hidden /> அச்சிடுக
-            </button>
-            <button type="button" disabled={!ready} onClick={download} className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50">
-              <Download size={15} aria-hidden /> பதிவிறக்குக
+            {canPrint && (
+              <button type="button" disabled={!ready} onClick={() => window.print()} className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-semibold hover:bg-muted disabled:opacity-50">
+                <Printer size={15} aria-hidden /> அச்சிடுக
+              </button>
+            )}
+            <button type="button" disabled={!ready} onClick={save} className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50">
+              {phone ? <Share2 size={15} aria-hidden /> : <Download size={15} aria-hidden />} {phone ? "சேமி / பகிர்" : "பதிவிறக்குக"}
             </button>
           </div>
         </div>
 
-        {!ready && <p role={failed ? "alert" : "status"} className="mb-3 text-sm text-muted-foreground print:hidden">{failed ? "அடையாள அட்டையை உருவாக்க முடியவில்லை. மூடிவிட்டு மீண்டும் முயற்சிக்கவும்." : "அடையாள அட்டை தயாராகிறது…"}</p>}
-        <canvas id="printable-id-card" ref={canvasRef} width={W} height={H} aria-label={`${student.name} - மாணவர் அடையாள அட்டை`} className={`h-auto w-full rounded-xl border border-border ${ready ? "" : "invisible"}`} />
+        {!ready && (
+          <div role={failed ? "alert" : "status"} className="flex aspect-[1011/639] w-full items-center justify-center rounded-xl border border-border bg-muted p-4 text-center text-sm text-muted-foreground print:hidden">
+            {failed ? "அடையாள அட்டையை உருவாக்க முடியவில்லை. மூடிவிட்டு மீண்டும் முயற்சிக்கவும்." : "அடையாள அட்டை தயாராகிறது…"}
+          </div>
+        )}
+        {ready && (
+          // eslint-disable-next-line @next/next/no-img-element -- a card drawn in this browser, held as a blob URL
+          <img id="printable-id-card" src={rendered.url} alt={`${student.name} - மாணவர் அடையாள அட்டை`} width={W} height={H} className="h-auto w-full rounded-xl border border-border" />
+        )}
+        {ready && phone && <p className="mt-2 text-center text-xs text-muted-foreground print:hidden">அட்டையை நீண்ட நேரம் அழுத்தியும் சேமிக்கலாம்.</p>}
+        {shareFailed && <p role="alert" className="mt-2 text-center text-xs text-destructive print:hidden">பகிர முடியவில்லை; கோப்பாகப் பதிவிறக்கப்பட்டது.</p>}
 
-        <button type="button" onClick={onClose} className="mt-5 min-h-11 w-full cursor-pointer rounded-lg border border-border font-semibold hover:bg-muted print:hidden">
+        <button type="button" onClick={onClose} className="mt-4 min-h-11 w-full cursor-pointer rounded-lg border border-border font-semibold hover:bg-muted print:hidden">
           மூடுக
         </button>
       </div>

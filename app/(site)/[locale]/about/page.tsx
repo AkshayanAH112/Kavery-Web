@@ -3,6 +3,7 @@ import Image from "next/image";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ContactPeople } from "@/components/site/ContactPeople";
 import { PageShell } from "@/components/site/PageShell";
+import { CommitteeGrid, SponsorWall } from "@/components/site/People";
 import { getContentPresence } from "@/lib/content/public";
 import { CLUB, getAboutStats, getSettings } from "@/lib/site";
 import { paragraphs, type Bilingual, type Officer } from "@/lib/site-settings";
@@ -36,19 +37,13 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/about">)
   };
 }
 
-function Officers({ title, people }: { title: string; people: Officer[] }) {
+/** A committee under its heading, as photo cards (the same cards as the home page). */
+function CommitteeBlock({ title, people, locale, headingClass = "text-accent" }: { title: string; people: Officer[]; locale: string; headingClass?: string }) {
   if (people.length === 0) return null;
   return (
     <div className="mt-10">
-      <h3 className="eyebrow text-accent">{title}</h3>
-      <ul className="mt-4 grid gap-x-10 sm:grid-cols-2">
-        {people.map((p, i) => (
-          <li key={i} className="flex items-baseline justify-between gap-4 border-b border-line py-3">
-            <span className="text-muted-foreground">{p.role}</span>
-            <span className="text-right font-semibold text-fg">{p.name}</span>
-          </li>
-        ))}
-      </ul>
+      <h3 className={`eyebrow ${headingClass}`}>{title}</h3>
+      <CommitteeGrid people={people} locale={locale} compact className="mt-5" />
     </div>
   );
 }
@@ -63,7 +58,7 @@ function Fact({ label, value }: { label: string; value: string | number }) {
 }
 
 /**
- * Who the club and KEDA are. The words, the office bearers and the contact lines
+ * Who the club and KEDA are. The words, the committees, the sponsors and the contact lines
  * are whatever an administrator entered under Site details; where they have
  * entered nothing, the page falls back to the short standard wording or leaves
  * the line out. Nothing here is made up by the page.
@@ -85,7 +80,7 @@ export default async function AboutPage({ params }: PageProps<"/[locale]/about">
       <section id="club" className="grid gap-12 lg:grid-cols-[1.3fr_0.7fr] lg:gap-16">
         <div className="min-w-0">
           <div className="max-w-2xl space-y-5 text-lg leading-relaxed text-muted-foreground">{(clubText.length ? clubText : [t("club.p1"), t("club.p2")]).map((p, i) => <p key={i}>{p}</p>)}</div>
-          <Officers title={t("about.officers")} people={settings.officers.filter((o) => o.org === "ksc")} />
+          <CommitteeBlock title={t("about.officers")} people={settings.officers.filter((o) => o.org === "ksc")} locale={locale} />
           <a href={`${base}/membership`} className="btn btn-brand mt-10">
             <span>{t("club.join")}</span>
           </a>
@@ -123,7 +118,7 @@ export default async function AboutPage({ params }: PageProps<"/[locale]/about">
                 <p className="mt-2 whitespace-pre-line text-lg font-semibold text-fg">{classInfo}</p>
               </div>
             )}
-            <Officers title={t("about.officers")} people={settings.officers.filter((o) => o.org === "keda")} />
+            <CommitteeBlock title={t("about.officers")} people={settings.officers.filter((o) => o.org === "keda")} locale={locale} headingClass="text-brand-text" />
             <div className="mt-10 flex flex-wrap gap-x-5 gap-y-4 pl-1">
               <a href={`${base}/parents`} className="btn btn-brand">
                 <span>{t("keda.results")}</span>
@@ -142,6 +137,14 @@ export default async function AboutPage({ params }: PageProps<"/[locale]/about">
           </div>
         </div>
       </section>
+
+      {settings.sponsors.length > 0 && (
+        <section id="sponsors" className="mt-20 scroll-mt-[calc(var(--nav-h)+1rem)]">
+          <h2 className="display h-section">{t("about.sponsors")}</h2>
+          <p className="mt-4 max-w-2xl text-lg leading-relaxed text-muted-foreground">{t("about.sponsorsLead")}</p>
+          <SponsorWall sponsors={settings.sponsors} className="mt-8" />
+        </section>
+      )}
 
       <section id="contact" className="mt-20 scroll-mt-[calc(var(--nav-h)+1rem)]">
         <h2 className="display h-section">{t("footer.contact")}</h2>

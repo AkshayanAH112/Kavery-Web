@@ -29,7 +29,7 @@ export function Modal({
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-card rounded-[var(--card-radius)] max-w-sm w-full p-6 sm:p-8 border border-border shadow-2xl"
+        className="bg-card rounded-[var(--card-radius)] max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto p-6 sm:p-8 border border-border shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-3">

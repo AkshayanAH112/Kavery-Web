@@ -10,6 +10,8 @@ import { Modal, ConfirmDialog, AlertModal } from "@/components/console/confirm-d
 import { useCurrentUser } from "@/components/console/current-user";
 import { isValidPhoneLocal, PHONE_HINT } from "@/lib/phone";
 import { shrinkImage } from "@/lib/upload-client";
+import { PhotoSource } from "@/components/console/photo-editor";
+import { RegistrationNumberInput, registrationNumberProblem, tidyRegistrationNumber } from "@/components/keda/registration-number";
 import { BaminiInput, BaminiToggle, useBaminiTyping } from "@/components/keda/bamini-input";
 import { ChoiceInput, useStudentChoices } from "@/components/keda/choice-input";
 import { searchText } from "@/lib/keda/bamini";
@@ -56,6 +58,14 @@ function StudentsPageContent() {
   const [formError, setFormError] = useState<string | null>(null);
   const [registering, setRegistering] = useState(false);
 
+  // The index number: the next free one for the chosen batch is filled in, and can be
+  // overwritten with a number already issued on paper. Only a changed number is sent;
+  // left alone, the server issues the next one when the student is saved.
+  const [regNumber, setRegNumber] = useState("");
+  const [regSuggested, setRegSuggested] = useState("");
+  const [regEdited, setRegEdited] = useState(false);
+  const [regProblem, setRegProblem] = useState<string | null>(null);
+
   // Optional photo for the ID card. It is kept in the browser until the student
   // exists, then sent to the same private route the student's page uses.
   const [photo, setPhoto] = useState<File | null>(null);
@@ -72,6 +82,37 @@ function StudentsPageContent() {
     setIsModalOpen(false);
     setPhoneError(null);
     pickPhoto(null);
+    setRegEdited(false);
+    setRegProblem(null);
+  };
+
+  const batchYear = batches.find(b => b._id === formData.batchId)?.year ?? null;
+
+  // Ask for the next number whenever the form opens or the batch changes.
+  useEffect(() => {
+    if (!isModalOpen || !formData.batchId) return;
+    let active = true;
+    fetch(`/api/students/next-number?batchId=${encodeURIComponent(formData.batchId)}`)
+      .then(r => (r.ok ? r.json() as any : null))
+      .then(d => {
+        if (!active || !d?.registrationNumber) return;
+        setRegSuggested(d.registrationNumber);
+        if (!regEdited) setRegNumber(d.registrationNumber);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+    // regEdited is read, not watched: typing must not trigger a new lookup.
+  }, [isModalOpen, formData.batchId]);
+
+  const changeRegNumber = (value: string) => {
+    setRegNumber(value);
+    setRegEdited(true);
+    if (regProblem) setRegProblem(registrationNumberProblem(value, batchYear));
+  };
+  const useSuggestedNumber = () => {
+    setRegNumber(regSuggested);
+    setRegEdited(false);
+    setRegProblem(null);
   };
 
   // Inline "create new batch" — reached from the Batch select below when no
@@ -112,17 +153,21 @@ function StudentsPageContent() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    const typedNumber = regEdited ? tidyRegistrationNumber(regNumber) : "";
+    const numberProblem = regEdited ? registrationNumberProblem(regNumber, batchYear) : null;
+    setRegProblem(numberProblem);
     if (!isValidPhoneLocal(formData.guardianPhone)) {
       setPhoneError(PHONE_HINT);
       return;
     }
+    if (numberProblem) return;
     setPhoneError(null);
     setRegistering(true);
     try {
       const res = await fetch("/api/students", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, grade: Number(formData.grade) }),
+        body: JSON.stringify({ ...formData, grade: Number(formData.grade), ...(typedNumber ? { registrationNumber: typedNumber } : {}) }),
       });
       if (res.ok) {
         const { student } = await res.json() as any;
@@ -404,31 +449,47 @@ function StudentsPageContent() {
           <div className="bg-card rounded-3xl max-w-lg w-full max-h-[calc(100dvh-2rem)] overflow-y-auto p-6 sm:p-8 border border-border shadow-2xl">
             <h3 className="text-xl font-bold text-foreground mb-6">Register New Student</h3>
             <form onSubmit={handleCreate} className="space-y-4">
-              {/* The photo is printed on the ID card. */}
+              {/* The photo is printed on the ID card, so it is cropped to the card's frame. */}
               <div className="flex items-center gap-4">
-                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
+                <div className="flex aspect-[210/276] w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
                   {photoPreview ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- a local preview of the chosen file
+                    // eslint-disable-next-line @next/next/no-img-element -- a local preview of the cropped photo
                     <img src={photoPreview} alt="Student photo preview" className="h-full w-full object-cover" />
                   ) : (
                     <span className="text-2xl font-bold text-primary">{formData.name.trim().charAt(0)}</span>
                   )}
                 </div>
-                <div className="text-sm">
-                  <div className="flex items-center gap-3">
-                    <label className="cursor-pointer font-semibold text-primary underline underline-offset-4">
-                      {photo ? "Change photo" : "Add photo"}
-                      <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { if (e.target.files?.[0]) pickPhoto(e.target.files[0]); e.target.value = ""; }} />
-                    </label>
+                <div className="min-w-0 text-sm">
+                  <PhotoSource onPhoto={pickPhoto} uploadLabel={photo ? "Change" : "Upload"} />
+                  <p className="mt-1.5 text-muted-foreground">
+                    Printed on the ID card. It can be added later.
                     {photo && (
-                      <button type="button" onClick={() => pickPhoto(null)} className="cursor-pointer text-muted-foreground underline underline-offset-4 hover:text-destructive">
+                      <button type="button" onClick={() => pickPhoto(null)} className="ml-2 cursor-pointer underline underline-offset-4 hover:text-destructive">
                         Remove
                       </button>
                     )}
-                  </div>
-                  <p className="mt-1 text-muted-foreground">Printed on the ID card. It can be added later.</p>
+                  </p>
                 </div>
               </div>
+              <RegistrationNumberInput
+                value={regNumber}
+                onChange={changeRegNumber}
+                problem={regProblem}
+                hint={
+                  regEdited && regSuggested && tidyRegistrationNumber(regNumber) !== regSuggested ? (
+                    <>
+                      A number already given on paper.{" "}
+                      <button type="button" onClick={useSuggestedNumber} className="cursor-pointer font-semibold text-foreground underline underline-offset-4">
+                        Use the next free number ({regSuggested})
+                      </button>
+                    </>
+                  ) : regSuggested ? (
+                    "The next free number for this batch. Change it only if the student already has a number on paper."
+                  ) : (
+                    "Choose a batch to see the next free number."
+                  )
+                }
+              />
               <BaminiToggle on={bamini} onChange={setBamini} />
               <div><label className="field-label">Full Name</label><BaminiInput bamini={bamini} required className="field" value={formData.name} onValueChange={v => setFormData(prev => ({ ...prev, name: v }))} /></div>
               <div><label className="field-label">School</label><ChoiceInput options={choices.schools} bamini={bamini} className="field" value={formData.school} onValueChange={v => setFormData(prev => ({ ...prev, school: v }))} /></div>
@@ -482,7 +543,7 @@ function StudentsPageContent() {
           student never has to be blocked on leaving to /console/batches first. */}
       {isNewBatchModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border p-6 sm:p-8 rounded-3xl max-w-sm w-full shadow-2xl">
+          <div className="bg-card border border-border p-6 sm:p-8 rounded-3xl max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto shadow-2xl">
             <h2 className="text-xl font-bold mb-6 text-foreground">New Batch</h2>
             <form onSubmit={createBatchInline} className="space-y-4">
               <div>

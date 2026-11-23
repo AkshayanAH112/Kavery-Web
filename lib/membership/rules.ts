@@ -2,11 +2,35 @@
  * Club membership rules shared by the public forms, the console and the API.
  * No server imports, so client components can use it too.
  */
+/**
+ * What a member is: a school student, an undergraduate, or working — the three the fee can differ
+ * by. "Working" is stored as `other`, its value from before it had a list of occupations, so the
+ * fee settings and the members already saved keep meaning the same thing.
+ */
 export const JOB_CATEGORIES = [
   { value: "school_student", label: "School student" },
   { value: "undergraduate", label: "Undergraduate" },
+  { value: "other", label: "Working" },
+] as const;
+
+/** A working member's occupation. `other` asks them to type it. The label is what is stored. */
+export const OCCUPATIONS = [
+  { value: "teacher", label: "Teacher" },
+  { value: "government", label: "Government employee" },
+  { value: "private", label: "Private sector employee" },
+  { value: "business", label: "Business / self-employed" },
+  { value: "farmer", label: "Farmer" },
+  { value: "fisherman", label: "Fisherman" },
+  { value: "driver", label: "Driver" },
+  { value: "labourer", label: "Labourer" },
+  { value: "health", label: "Doctor / nurse / health worker" },
+  { value: "engineer", label: "Engineer / technician" },
+  { value: "forces", label: "Police / armed forces" },
+  { value: "abroad", label: "Working abroad" },
   { value: "other", label: "Other" },
 ] as const;
+export type Occupation = (typeof OCCUPATIONS)[number]["value"];
+export const isOccupation = (value: unknown): value is Occupation => typeof value === "string" && OCCUPATIONS.some((o) => o.value === value);
 export type JobCategory = (typeof JOB_CATEGORIES)[number]["value"];
 
 export function isJobCategory(value: unknown): value is JobCategory {
@@ -102,6 +126,36 @@ export function computeAge(dateOfBirth: Date | string, today = new Date()): numb
   const monthDiff = today.getUTCMonth() - dob.getUTCMonth();
   if (monthDiff < 0 || (monthDiff === 0 && today.getUTCDate() < dob.getUTCDate())) age--;
   return age;
+}
+
+/** Younger than this is a date of birth typed wrong (a phone's date picker opens on today). */
+export const MIN_MEMBER_AGE = 5;
+
+/**
+ * The date of birth a Sri Lankan NIC carries, as "YYYY-MM-DD", or null. Old cards are YYDDDnnnnV
+ * (born 19YY), new ones YYYYDDDnnnnn. DDD is the day of the year, plus 500 for a woman, counted as if
+ * every February had 29 days — so 060 is 29 February and 061 is always 1 March.
+ */
+export function nicBirthDate(value: string): string | null {
+  const nic = normalizeNic(value);
+  const parts = /^(\d{2})(\d{3})\d{4}[VX]$/.exec(nic) ?? /^(\d{4})(\d{3})\d{5}$/.exec(nic);
+  if (!parts) return null;
+  const year = parts[1].length === 2 ? 1900 + Number(parts[1]) : Number(parts[1]);
+  let day = Number(parts[2]);
+  if (day > 500) day -= 500;
+  if (day < 1 || day > 366) return null;
+  const inLeapYear = new Date(Date.UTC(2000, 0, day)); // 2000 has a 29 February, as the NIC's calendar does
+  const date = new Date(Date.UTC(year, inLeapYear.getUTCMonth(), inLeapYear.getUTCDate()));
+  // 29 February in a year that has none is not a real birthday.
+  if (date.getUTCMonth() !== inLeapYear.getUTCMonth()) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+/** "Male" or "Female" from an NIC (the day of the year has 500 added for a woman), or null. */
+export function nicGender(value: string): "Male" | "Female" | null {
+  if (!nicBirthDate(value)) return null;
+  const nic = normalizeNic(value);
+  return Number(nic.length === 10 ? nic.slice(2, 5) : nic.slice(4, 7)) > 500 ? "Female" : "Male";
 }
 
 /** A national identity card is issued at 16, so younger applicants are not asked for one. */

@@ -8,11 +8,11 @@
  *
  * KEDA classes are free. Nothing in this domain has a fee, and nothing should.
  */
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, like, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { keepLettersApart } from "@/lib/keda/bamini";
 
-const { batches: B, students: S, classSessions: C, counters, exams: E, marks: M } = schema;
+const { batches: B, students: S, classSessions: C, counters, exams: E, tests: T, marks: M } = schema;
 
 export type BatchRow = typeof B.$inferSelect;
 export type StudentRow = typeof S.$inferSelect;
@@ -177,18 +177,57 @@ const FIRST_NUMBER = 1000;
 
 export const isRegistrationNumber = (value: unknown): value is string => typeof value === "string" && REG_PATTERN.test(value);
 
+/** A number as typed: spaces dropped and upper case, so "keda/27/1050 " is KEDA/27/1050. */
+export const normalizeRegistrationNumber = (value: unknown) => (typeof value === "string" ? value.replace(/\s+/g, "").toUpperCase() : "");
+
+const yearPrefix = (year: number) => `KEDA/${String(year % 100).padStart(2, "0")}/`;
+const formatRegistrationNumber = (year: number, seq: number) => `${yearPrefix(year)}${FIRST_NUMBER - 1 + seq}`;
+
+/** The highest sequence already on a student for that year (0 if none). */
+async function highestIssued(year: number) {
+  const rows = await getDb()
+    .select({ n: S.registrationNumber })
+    .from(S)
+    .where(like(S.registrationNumber, `${yearPrefix(year)}%`));
+  let highest = 0;
+  for (const { n } of rows) {
+    const match = n ? REG_PATTERN.exec(n) : null;
+    if (match) highest = Math.max(highest, Number(match[2]) - (FIRST_NUMBER - 1));
+  }
+  return highest;
+}
+
+const isTaken = async (registrationNumber: string) => !!(await getDb().query.students.findFirst({ columns: { id: true }, where: eq(S.registrationNumber, registrationNumber) }));
+
 /**
  * "KEDA/27/1000": the batch's exam year, then a sequence that starts at 1000
  * each year — the format on KEDA's own paper registers. The counter is bumped
  * in one statement, so two registrations at once can never share a number.
+ * Should the counter ever sit behind a number a student already has (a row
+ * written some other way), it is moved past the highest one and bumped again.
  */
 export async function nextRegistrationNumber(year: number) {
-  const [row] = await getDb()
-    .insert(counters)
-    .values({ id: `regno-${year}`, seq: 1 })
-    .onConflictDoUpdate({ target: counters.id, set: { seq: sql`${counters.seq} + 1` } })
-    .returning({ seq: counters.seq });
-  return `KEDA/${String(year % 100).padStart(2, "0")}/${FIRST_NUMBER - 1 + row.seq}`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const [row] = await getDb()
+      .insert(counters)
+      .values({ id: `regno-${year}`, seq: 1 })
+      .onConflictDoUpdate({ target: counters.id, set: { seq: sql`${counters.seq} + 1` } })
+      .returning({ seq: counters.seq });
+    const number = formatRegistrationNumber(year, row.seq);
+    if (!(await isTaken(number))) return number;
+    await reserveRegistrationNumber(formatRegistrationNumber(year, await highestIssued(year)));
+  }
+  throw new Error("Could not issue an index number");
+}
+
+/**
+ * The number the next registration for that year would get, without taking it —
+ * shown on the Register Student form. Someone registering at the same moment may
+ * take it first; a form that sends it back unchanged then gets the next one.
+ */
+export async function peekRegistrationNumber(year: number) {
+  const [row] = await getDb().select({ seq: counters.seq }).from(counters).where(eq(counters.id, `regno-${year}`));
+  return formatRegistrationNumber(year, Math.max(row?.seq ?? 0, await highestIssued(year)) + 1);
 }
 
 /**
@@ -238,24 +277,29 @@ export async function readBody(request: Request): Promise<Record<string, any> | 
 /* -------------------------------------------------------------------- marks */
 
 /**
- * A student's marks in the flat shape KCSC's screens read (subject, date and
- * maximum copied down from the exam). `marks` is 0 for an absent student —
- * always check `isAbsent` before treating it as a score.
+ * A student's marks, one per paper, in the flat shape KCSC's screens read
+ * (subject, date and maximum copied down from the paper, the name from its
+ * test; a two-part test's papers are "Part 1" and "Part 2"). `marks` is 0 for an
+ * absent student — always check `isAbsent` before treating it as a score.
  */
 export async function marksForStudent(studentId: string) {
   const rows = await getDb()
-    .select({ mark: M, exam: E })
+    .select({ mark: M, exam: E, testName: T.name, kind: T.kind })
     .from(M)
     .innerJoin(E, eq(M.examId, E.id))
+    .leftJoin(T, eq(E.testId, T.id))
     .where(eq(M.studentId, studentId))
     .orderBy(asc(E.examDate));
   return rows
-    .map(({ mark, exam }) => ({
+    .map(({ mark, exam, testName, kind }) => ({
       _id: mark.id,
       studentId: mark.studentId,
       examId: exam.id,
+      testId: exam.testId,
+      part: exam.part,
+      kind: kind ?? "test",
       subject: exam.subject,
-      examName: exam.name ?? undefined,
+      examName: testName ?? undefined,
       examDate: exam.examDate.toISOString(),
       marks: mark.marks,
       isAbsent: mark.isAbsent,

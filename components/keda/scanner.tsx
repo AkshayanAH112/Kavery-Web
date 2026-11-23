@@ -304,7 +304,7 @@ export default function ScannerPage() {
           onClick={() => setScannedStudent(null)}
         >
           <div
-            className="w-full max-w-sm rounded-3xl border border-border bg-card p-6 shadow-2xl"
+            className="w-full max-h-[calc(100dvh-2rem)] overflow-y-auto max-w-sm rounded-3xl border border-border bg-card p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-5 flex items-start justify-between gap-4">
@@ -368,7 +368,7 @@ export default function ScannerPage() {
           attendance never has to be blocked on leaving to /console/batches first. */}
       {isNewClassModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border p-6 sm:p-8 rounded-3xl max-w-sm w-full shadow-2xl">
+          <div className="bg-card border border-border p-6 sm:p-8 rounded-3xl max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto shadow-2xl">
             <h2 className="text-xl font-bold mb-6 text-foreground">New Class Session</h2>
             <form onSubmit={createClassInline} className="space-y-4">
               <div>

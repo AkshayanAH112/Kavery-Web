@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { OrgTabs } from "@/components/site/OrgTabs";
-import { PageShell, formatDate } from "@/components/site/PageShell";
+import { PageShell, formatDate, shareLabels } from "@/components/site/PageShell";
+import { ShareButton } from "@/components/site/ShareButton";
 import { getPublishedPosts, orgFilter } from "@/lib/content/public";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/news">): Promise<Metadata> {
@@ -43,7 +44,12 @@ export default async function NewsPage({ params, searchParams }: PageProps<"/[lo
   const [t, posts] = await Promise.all([getTranslations(), getPublishedPosts(24, org)]);
 
   return (
-    <PageShell crumbs={[{ label: t("nav.home"), href: `/${locale}` }, { label: t("news.eyebrow") }]} eyebrow={t("news.eyebrow")} title={t("news.title")}>
+    <PageShell
+      crumbs={[{ label: t("nav.home"), href: `/${locale}` }, { label: t("news.eyebrow") }]}
+      eyebrow={t("news.eyebrow")}
+      title={t("news.title")}
+      actions={<ShareButton path={`/${locale}/news${org ? `?org=${org}` : ""}`} title={t("news.title")} labels={shareLabels(t)} />}
+    >
       <OrgTabs base={`/${locale}/news`} current={org} labels={{ all: t("news.tabAll"), ksc: t("news.ksc"), keda: t("news.keda") }} />
       {posts.length === 0 ? (
         <p className="live-card p-8 text-muted-foreground">{t("news.empty")}</p>

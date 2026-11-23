@@ -14,14 +14,24 @@ import { usePathname, useSearchParams } from "next/navigation";
  * redirect stops being a real redirect.
  *
  * It remembers which page the link was followed FROM and shows while that is
- * still the current page — so it disappears by itself when the route changes,
- * with no effect needed to switch it off. A full page load replaces the document
+ * still the current page; the first route change clears it, so returning to
+ * that page later does not bring it back. A full page load replaces the document
  * (and the bar with it). The timer is only a failsafe for a link that turned out
  * not to navigate.
  */
 export function RouteProgress() {
   const here = `${usePathname()}?${useSearchParams()}`;
   const [leaving, setLeaving] = useState<string | null>(null);
+
+  // Once the route changes, the navigation that was waited on is over. Forget
+  // it here, during render: otherwise coming back to that same page later — the
+  // Back button from an album, or an editor sending you back to the list you
+  // opened it from — would match it again and leave the waiting screen up.
+  const [seen, setSeen] = useState(here);
+  if (seen !== here) {
+    setSeen(here);
+    setLeaving(null);
+  }
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;

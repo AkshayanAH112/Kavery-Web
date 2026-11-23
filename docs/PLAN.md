@@ -178,9 +178,41 @@ cycles, role boundaries, deletion guards) on the dev server.
   tie-break — with "absent" and "no mark entered" shown apart. The report prints (or saves as PDF)
   through the browser so Tamil names render correctly.
 - Student profile with averages by subject
+- **Tests of two parts** (added 2026-10-19). A test is Part 1 + Part 2, like the scholarship exam's
+  Paper I and II, sat on the same day or on different days, or a single paper; a model exam is a full
+  mock with both parts on one day. Marks are entered per part, on that part's own roster and
+  register. The test page shows Part 1, Part 2, the total and the rank, and the result sheet exports
+  them. Total = the parts sat (an absent part adds nothing, the child is still ranked on it); absent
+  for both = no rank. A test is published whole, and only once every part is entered. The parent page
+  shows one card per test and summarises model exams apart; the analysis has one column per test and
+  a regular / model filter. Existing exams became single-paper tests (migrations 0001–0002, columns
+  added rather than the table rebuilt, so no mark is lost). Checked by a scripted run (49 assertions:
+  totals and ranks recomputed independently, absences in one part and both, ties, model-exam dates,
+  the publish gate, maximum lowering, analysis, the parent view and its privacy, delete).
 
 Checked by a second scripted run (37 assertions) and, together with the cricket and attendance
 suites, against the production Worker in the local Workers runtime: all three pass there.
+
+**Built ✅** — online exams (added 2026-10-22):
+
+- Students sit papers on the parent page — at home on a parent's phone, or in class on a tablet after
+  scanning their card. About 100 students at once is well within D1 and the Worker's free limits.
+- Questions are multiple choice (up to six answers, each with optional text and picture) or a short
+  written answer, with a picture on any question. Staff type them with Bamini keys like every other
+  KEDA text. Pictures are private until a child has started the paper.
+- Two kinds of paper. **Practice**: the child sees their score when they hand in, and the answers once
+  it closes. **Exam**: set up from Part 1 or Part 2 of a test; when it closes and short answers are
+  marked, "Copy scores" writes them into that part's marks (optionally marking non-starters absent,
+  never over a mark entered by hand), and the test is then published as usual.
+- Opening and closing times, a time allowed per student counted on the server, answers saved one by
+  one as they are given (and retried on a weak connection), automatic hand-in at the deadline, order
+  mixed per student, extra time or a fresh start for one student, and marking of short answers
+  grouped so one decision marks every identical answer.
+- Checked by two scripted runs (86 and 6 assertions) on the dev server: the whole practice and exam
+  flow, the key never reaching a student early, locked questions, re-marking on a corrected key,
+  extra time, copying to a test, deleting a test, and a sitting ending by itself at its deadline.
+- Not yet tried by hand in a browser or on a phone. Someone cannot be stopped from helping a child at
+  home: an exam that counts for rank is best sat in class.
 
 **Built ✅** — import and promotion:
 
@@ -217,6 +249,10 @@ suites, against the production Worker in the local Workers runtime: all three pa
   without a photo shows the child's initial, and a long name wraps to two lines.
 - About page (`/[locale]/about`) for the club and KEDA, fed by a "Site details" screen in the
   console: contact lines, the story in English and Tamil, class times, office bearers.
+  Since 2026-10-19 the club's and KEDA's committees show as photo cards (each member has an optional
+  photo and a role in English and Tamil, ordered by hand) and sponsors have their own section with
+  logos and links. Pictures go to the public `site` folder in R2 (upload needs `site.manage`); one
+  that is replaced or removed is deleted from R2 when Site details are saved.
 - News and gallery can be viewed as All / Club / KEDA, and a post or album is marked as the club's
   or KEDA's when it is created.
 - Publishing a post or an exam sends a push notification to people who asked for that topic.

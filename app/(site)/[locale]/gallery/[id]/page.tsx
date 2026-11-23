@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Lightbox } from "@/components/site/Lightbox";
-import { PageShell } from "@/components/site/PageShell";
+import { PageShell, shareLabels } from "@/components/site/PageShell";
+import { ShareButton } from "@/components/site/ShareButton";
 import { getAlbum } from "@/lib/content/public";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/gallery/[id]">): Promise<Metadata> {
@@ -52,6 +53,7 @@ export default async function AlbumPage({ params }: PageProps<"/[locale]/gallery
       crumbs={[{ label: t("nav.home"), href: `/${locale}` }, { label: t("gallery.eyebrow"), href: `/${locale}/gallery` }, { label: album.folder.name }]}
       eyebrow={t("gallery.photos", { count: album.images.length })}
       title={album.folder.name}
+      actions={<ShareButton path={`/${locale}/gallery/${id}`} title={album.folder.name} labels={shareLabels(t)} />}
     >
       <Lightbox
         photos={album.images.map((img) => ({ id: img.id, url: img.url, caption: img.caption }))}

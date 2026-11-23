@@ -7,11 +7,13 @@ import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Ba
 import { Loader2, ArrowLeft, AlertTriangle, GraduationCap, QrCode as QrIcon, Pencil, Trash2, X } from "lucide-react";
 import { StudentIdCardModal } from "@/components/keda/student-id-card-modal";
 import { shrinkImage } from "@/lib/upload-client";
+import { PhotoSource } from "@/components/console/photo-editor";
 import { Modal, ConfirmDialog, AlertModal } from "@/components/console/confirm-dialog";
 import { useCurrentUser } from "@/components/console/current-user";
 import { isValidPhoneLocal, PHONE_HINT } from "@/lib/phone";
 import { BaminiInput, BaminiToggle, useBaminiTyping } from "@/components/keda/bamini-input";
 import { ChoiceInput, useStudentChoices } from "@/components/keda/choice-input";
+import { RegistrationNumberInput, registrationNumberProblem, tidyRegistrationNumber } from "@/components/keda/registration-number";
 
 export default function StudentProfilePage() {
   const params = useParams();
@@ -135,15 +137,14 @@ export default function StudentProfilePage() {
                 <span className="text-3xl font-bold text-primary">{student.name.charAt(0)}</span>
               )}
             </div>
-            {/* The photo is printed on the ID card. */}
-            <div className="mb-4 flex items-center gap-3 text-sm">
-              <label className={`cursor-pointer font-semibold text-primary underline underline-offset-4 ${photoBusy ? "pointer-events-none opacity-60" : ""}`}>
-                {photoBusy ? "Uploading…" : student.photoUrl ? "Change photo" : "Add photo"}
-                <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={photoBusy} onChange={(e) => { uploadPhoto(e.target.files?.[0]); e.target.value = ""; }} />
-              </label>
-              {student.photoUrl && !photoBusy && (
+            {/* The photo is printed on the ID card, so it is cropped to the card's frame. */}
+            <div className="mb-4 flex flex-col items-center gap-2 text-sm">
+              <PhotoSource onPhoto={uploadPhoto} busy={photoBusy} uploadLabel={student.photoUrl ? "Change" : "Upload"} className="justify-center" />
+              {photoBusy ? (
+                <span className="inline-flex items-center gap-1.5 text-muted-foreground"><Loader2 className="animate-spin" size={14} aria-hidden /> Uploading…</span>
+              ) : student.photoUrl && (
                 <button type="button" onClick={removePhoto} className="cursor-pointer text-muted-foreground underline underline-offset-4 hover:text-destructive">
-                  Remove
+                  Remove photo
                 </button>
               )}
             </div>
@@ -309,7 +310,7 @@ export default function StudentProfilePage() {
               {marks.map((m: any) => (
                 <div key={m._id} className="flex items-center justify-between rounded-lg px-2 py-2 text-sm odd:bg-muted/50">
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-foreground">{m.subject}</p>
+                    <p className="truncate font-medium text-foreground">{m.examName ? `${m.examName} · ${m.subject}` : m.subject}</p>
                     <p className="text-xs text-muted-foreground">{new Date(m.examDate).toLocaleDateString()}</p>
                   </div>
                   <span className={`tabular shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${m.isAbsent ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}`}>
@@ -377,6 +378,7 @@ export default function StudentProfilePage() {
 
       {isEditOpen && (
         <EditStudentModal
+          canEditNumber={user?.isAdmin === true}
           student={student}
           onClose={() => setIsEditOpen(false)}
           onSaved={() => { setIsEditOpen(false); fetchData(); }}
@@ -436,7 +438,7 @@ export default function StudentProfilePage() {
   );
 }
 
-function EditStudentModal({ student, onClose, onSaved }: { student: any; onClose: () => void; onSaved: () => void }) {
+function EditStudentModal({ student, canEditNumber, onClose, onSaved }: { student: any; canEditNumber: boolean; onClose: () => void; onSaved: () => void }) {
   const [batches, setBatches] = useState<any[]>([]);
   const [form, setForm] = useState({
     name: student.name,
@@ -449,6 +451,10 @@ function EditStudentModal({ student, onClose, onSaved }: { student: any; onClose
     batchId: student.batchId?._id ?? "",
     isActive: student.isActive !== false,
   });
+  const originalNumber: string = student.registrationNumber ?? "";
+  const [regNumber, setRegNumber] = useState(originalNumber);
+  const [regProblem, setRegProblem] = useState<string | null>(null);
+  const numberChanged = canEditNumber && tidyRegistrationNumber(regNumber) !== originalNumber;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
@@ -461,17 +467,25 @@ function EditStudentModal({ student, onClose, onSaved }: { student: any; onClose
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    const numberProblem = numberChanged ? registrationNumberProblem(regNumber) : null;
+    setRegProblem(numberProblem);
     if (!isValidPhoneLocal(form.guardianPhone)) {
       setPhoneError(PHONE_HINT);
       return;
     }
+    if (numberProblem) return;
     setPhoneError(null);
     setSaving(true);
     try {
       const res = await fetch(`/api/students/${student._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, grade: Number(form.grade) }),
+        body: JSON.stringify({
+          ...form,
+          grade: Number(form.grade),
+          // Sent only when an administrator has changed it; the route refuses anyone else.
+          ...(numberChanged ? { registrationNumber: tidyRegistrationNumber(regNumber), allowRegistrationNumberEdit: true } : {}),
+        }),
       });
       if (res.ok) onSaved();
       else { const err = await res.json() as any; setError(err.error); }
@@ -482,12 +496,24 @@ function EditStudentModal({ student, onClose, onSaved }: { student: any; onClose
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-3xl border border-border bg-card p-6 shadow-2xl sm:p-8" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-h-[calc(100dvh-2rem)] overflow-y-auto max-w-lg rounded-3xl border border-border bg-card p-6 shadow-2xl sm:p-8" onClick={(e) => e.stopPropagation()}>
         <div className="mb-6 flex items-start justify-between">
           <h2 className="text-xl font-bold text-foreground">Edit Student</h2>
           <button onClick={onClose} className="cursor-pointer text-muted-foreground hover:text-foreground"><X size={20} /></button>
         </div>
         <form onSubmit={save} className="space-y-4">
+          <RegistrationNumberInput
+            id="edit-registration-number"
+            value={regNumber}
+            onChange={(value) => { setRegNumber(value); if (regProblem) setRegProblem(registrationNumberProblem(value)); }}
+            problem={regProblem}
+            locked={canEditNumber ? undefined : "Printed on the student's card. Only an administrator can change it."}
+            hint={
+              numberChanged
+                ? `Changing it from ${originalNumber || "no number"}: the old card shows the old number, so print a new card. Its QR code stays the same and still scans.`
+                : "Printed on the student's card. Change it only to correct a mistake."
+            }
+          />
           <BaminiToggle on={bamini} onChange={setBamini} />
           <div><label className="field-label">Full Name</label><BaminiInput bamini={bamini} required className="field" value={form.name} onValueChange={v => setForm(prev => ({ ...prev, name: v }))} /></div>
           <div><label className="field-label">School</label><ChoiceInput options={choices.schools} bamini={bamini} className="field" value={form.school} onValueChange={v => setForm(prev => ({ ...prev, school: v }))} /></div>

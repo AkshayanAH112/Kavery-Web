@@ -251,7 +251,7 @@ export default function FolderGalleryPage() {
       {/* Delete Confirmation Modal */}
       {imageToDelete && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border p-6 sm:p-8 rounded-3xl max-w-sm w-full shadow-2xl">
+          <div className="bg-card border border-border p-6 sm:p-8 rounded-3xl max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto shadow-2xl">
             <h2 className="text-xl font-bold mb-4 text-foreground">Delete Photo?</h2>
             <p className="text-muted-foreground mb-6">Are you sure you want to delete this photo? This cannot be undone.</p>
             <div className="flex gap-3">

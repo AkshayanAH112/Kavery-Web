@@ -8,6 +8,8 @@ export const MEDIA_FOLDERS: Record<string, { permission: Permission; public: boo
   cricket: { permission: "cricket.score", public: true },
   news: { permission: "content.manage", public: true },
   gallery: { permission: "content.manage", public: true },
+  // Committee photos and sponsor logos for the About page (Site details).
+  site: { permission: "site.manage", public: true },
 };
 
 /**

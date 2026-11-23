@@ -4,57 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import {
-  BarChart3,
-  BellRing,
-  CalendarCheck,
-  CalendarDays,
-  ClipboardList,
-  ExternalLink,
-  FileSpreadsheet,
-  GraduationCap,
-  IdCard,
-  Images,
-  LayoutDashboard,
-  LogOut,
-  Moon,
-  Newspaper,
-  PanelLeft,
-  ScanLine,
-  Search,
-  Shield,
-  Sun,
-  Table2,
-  TriangleAlert,
-  Trophy,
-  Settings,
-  UserCog,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { ExternalLink, LogOut, Moon, PanelLeft, Search, Sun } from "lucide-react";
+import { moduleIcon } from "@/components/console/icons";
+import { MobileNav } from "@/components/console/MobileNav";
 import type { ConsoleGroup } from "@/lib/console-nav";
 import { cn } from "@/lib/utils";
-
-const ICONS: Record<string, LucideIcon> = {
-  dashboard: LayoutDashboard,
-  trophy: Trophy,
-  shield: Shield,
-  table: Table2,
-  scan: ScanLine,
-  students: GraduationCap,
-  calendar: CalendarDays,
-  today: CalendarCheck,
-  report: ClipboardList,
-  alert: TriangleAlert,
-  analysis: BarChart3,
-  marks: FileSpreadsheet,
-  members: IdCard,
-  news: Newspaper,
-  gallery: Images,
-  bell: BellRing,
-  staff: UserCog,
-  settings: Settings,
-};
 
 /**
  * A boolean kept in localStorage and read through useSyncExternalStore, so the
@@ -103,7 +57,6 @@ export function Shell({ groups, user, children }: { groups: ConsoleGroup[]; user
   const pathname = usePathname();
   const collapsed = useFlag(collapsedFlag);
   const dark = useFlag(darkFlag);
-  const [drawer, setDrawer] = useState(false);
   // The deepest matching link wins, so /console/cricket/teams lights up "Teams" and not also "Matches".
   const activeHref = groups
     .flatMap((g) => g.items.map((m) => m.href))
@@ -111,46 +64,32 @@ export function Shell({ groups, user, children }: { groups: ConsoleGroup[]; user
     .sort((a, b) => b.length - a.length)[0];
   const isActive = (href: string) => href === activeHref;
 
-  const toggleSidebar = () => {
-    if (window.matchMedia("(min-width: 1024px)").matches) collapsedFlag.set(!collapsed);
-    else setDrawer((open) => !open);
-  };
 
   return (
     <div className="min-h-screen lg:flex">
-      {drawer && <button type="button" aria-label="Close menu" className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setDrawer(false)} />}
-
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[17rem] flex-col bg-bg transition-[translate,width] duration-200 lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:translate-x-0 print:hidden",
-          drawer ? "translate-x-0 shadow-2xl" : "-translate-x-full",
-          collapsed && "lg:w-[4.5rem]",
-        )}
-      >
+      {/* Desktop only: below 1024px the floating bottom bar (MobileNav) takes over. */}
+      <aside className={cn("sticky top-0 hidden h-screen w-[17rem] shrink-0 flex-col bg-bg transition-[width] duration-200 lg:flex print:hidden", collapsed && "w-[4.5rem]")}>
         <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-4">
-          <Link href="/console" className="flex min-w-0 items-center gap-2.5" onClick={() => setDrawer(false)}>
+          <Link href="/console" className="flex min-w-0 items-center gap-2.5">
             <Image src="/brand/ksc-crest.png" alt="Kavery Sports Club crest" width={40} height={40} className="h-10 w-10 shrink-0" />
-            <span className={cn("truncate text-lg font-bold tracking-tight", collapsed && "lg:hidden")}>
+            <span className={cn("truncate text-lg font-bold tracking-tight", collapsed && "hidden")}>
               Kavery<span className="text-brand-text">.</span>
             </span>
           </Link>
-          <button type="button" aria-label="Close menu" className="inline-flex h-10 w-10 items-center justify-center rounded-lg lg:hidden" onClick={() => setDrawer(false)}>
-            <X aria-hidden className="h-5 w-5" />
-          </button>
         </div>
 
         <nav aria-label="Console" className="flex-1 overflow-y-auto px-3 pb-4">
           {groups.map((group) => (
             <div key={group.label} className="mt-4 first:mt-1">
-              <p className={cn("px-3 pb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground", collapsed && "lg:sr-only")}>{group.label}</p>
+              <p className={cn("px-3 pb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground", collapsed && "sr-only")}>{group.label}</p>
               <ul className="space-y-0.5">
                 {group.items.map((item) => {
-                  const Icon = ICONS[item.icon] ?? LayoutDashboard;
+                  const Icon = moduleIcon(item.icon);
                   const inner = (
                     <>
                       <Icon aria-hidden className="h-4.5 w-4.5 shrink-0" strokeWidth={1.75} />
-                      <span className={cn("flex-1 truncate", collapsed && "lg:hidden")}>{item.label}</span>
-                      {!item.ready && <span className={cn("rounded-full bg-muted px-2 py-0.5 text-[0.6875rem] font-semibold text-muted-foreground", collapsed && "lg:hidden")}>Soon</span>}
+                      <span className={cn("flex-1 truncate", collapsed && "hidden")}>{item.label}</span>
+                      {!item.ready && <span className={cn("rounded-full bg-muted px-2 py-0.5 text-[0.6875rem] font-semibold text-muted-foreground", collapsed && "hidden")}>Soon</span>}
                     </>
                   );
                   const base = "flex h-10 items-center gap-3 rounded-lg px-3 text-[0.9375rem] font-medium";
@@ -161,14 +100,13 @@ export function Shell({ groups, user, children }: { groups: ConsoleGroup[]; user
                           href={item.href}
                           title={collapsed ? item.label : undefined}
                           aria-current={isActive(item.href) ? "page" : undefined}
-                          onClick={() => setDrawer(false)}
-                          className={cn(base, "transition-colors", isActive(item.href) ? "bg-brand text-on-brand" : "hover:bg-muted", collapsed && "lg:justify-center lg:px-0")}
+                          className={cn(base, "transition-colors", isActive(item.href) ? "bg-brand text-on-brand" : "hover:bg-muted", collapsed && "justify-center px-0")}
                         >
                           {inner}
                         </Link>
                       ) : (
                         // Not built yet: shown so the shape of the console is visible, but not a link.
-                        <span aria-disabled="true" title={collapsed ? `${item.label} (not built yet)` : undefined} className={cn(base, "text-muted-foreground", collapsed && "lg:justify-center lg:px-0")}>
+                        <span aria-disabled="true" title={collapsed ? `${item.label} (not built yet)` : undefined} className={cn(base, "text-muted-foreground", collapsed && "justify-center px-0")}>
                           {inner}
                         </span>
                       )}
@@ -180,7 +118,7 @@ export function Shell({ groups, user, children }: { groups: ConsoleGroup[]; user
           ))}
         </nav>
 
-        <div className={cn("m-3 rounded-[var(--card-radius)] bg-muted p-4 text-center", collapsed && "lg:hidden")}>
+        <div className={cn("m-3 rounded-[var(--card-radius)] bg-muted p-4 text-center", collapsed && "hidden")}>
           <p className="text-sm font-semibold">Public site</p>
           <p className="mt-0.5 text-sm text-muted-foreground">See what visitors see.</p>
           <Link href="/" target="_blank" className="mt-3 inline-flex h-9 items-center gap-2 rounded-lg bg-brand px-3.5 text-sm font-semibold text-on-brand">
@@ -192,9 +130,12 @@ export function Shell({ groups, user, children }: { groups: ConsoleGroup[]; user
       <div className="min-w-0 flex-1 lg:py-2 lg:pr-2 print:p-0">
         <div className="flex min-h-screen flex-col border-line bg-surface-2/50 lg:min-h-[calc(100vh-1rem)] lg:rounded-2xl lg:border print:min-h-0 print:border-0 print:bg-transparent">
           <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 border-b border-line bg-bg/85 px-3 backdrop-blur-md print:hidden sm:px-4 lg:rounded-t-2xl">
-            <IconButton label="Toggle sidebar" onClick={toggleSidebar}>
+            <IconButton label="Toggle sidebar" onClick={() => collapsedFlag.set(!collapsed)} className="hidden lg:inline-flex">
               <PanelLeft aria-hidden className="h-4.5 w-4.5" />
             </IconButton>
+            <Link href="/console" aria-label="Dashboard" className="shrink-0 lg:hidden">
+              <Image src="/brand/ksc-crest.png" alt="" width={36} height={36} className="h-9 w-9" />
+            </Link>
             <span aria-hidden className="mx-1 hidden h-5 w-px bg-line sm:block" />
             <ModuleSearch groups={groups} />
             <div className="ml-auto flex items-center gap-1">
@@ -205,15 +146,19 @@ export function Shell({ groups, user, children }: { groups: ConsoleGroup[]; user
             </div>
           </header>
           <main className="min-w-0 flex-1 p-4 sm:p-6 print:p-0">{children}</main>
+          {/* Room under the last thing on a page, so the floating bar never sits on top of it. */}
+          <div aria-hidden className="h-[calc(6.5rem+env(safe-area-inset-bottom))] shrink-0 lg:hidden print:hidden" />
         </div>
       </div>
+
+      <MobileNav groups={groups} activeHref={activeHref} />
     </div>
   );
 }
 
-function IconButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+function IconButton({ label, onClick, className, children }: { label: string; onClick: () => void; className?: string; children: ReactNode }) {
   return (
-    <button type="button" aria-label={label} title={label} onClick={onClick} className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-muted">
+    <button type="button" aria-label={label} title={label} onClick={onClick} className={cn("inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-muted", className)}>
       {children}
     </button>
   );
