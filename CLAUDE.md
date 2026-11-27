@@ -159,7 +159,8 @@ database page returning 500 until it is restarted.
 - **Yearly promotion** (`lib/keda/promotion.ts`, `POST /api/cron/promote-students`): moves grades
   highest first and stamps each batch per year in `counters`. Both guards fix real faults in the
   KCSC job it came from (a Grade 3 student promoted twice in one run; a second run promoting
-  everyone again). The Cloudflare Cron Trigger that calls it is not wired yet.
+  everyone again). The Cron Trigger (see Scheduled notifications) does not call it yet; it would be
+  one more fetch in `worker.ts`'s `scheduled` handler.
 - **Reports print, they don't generate PDFs.** Student names are Tamil; client-side PDF libraries
   neither embed a Tamil font nor shape the script. The console shell hides itself in `@media print`.
 - **`.field` / `.field-label` / `.tabular`** in `app/globals.css` are the form classes the ported
@@ -237,6 +238,27 @@ database page returning 500 until it is restarted.
   edits (`PATCH /api/push/notices/[id]`: title, message, link, replace the poster) or deletes one
   (`DELETE`: clears `image`/`image_key` and removes the file; the send stays in the history). A
   notification already on phones cannot be changed or recalled — only the page it opens.
+- **Scheduled notifications** (`lib/push-schedule.ts` rules, `lib/push-schedules.ts` sending,
+  `push_schedules`): once, daily, weekly on chosen days, or monthly (29–31 fall back to the month's
+  last day), with an optional last date; all Sri Lanka time. `worker.ts` is the Worker entry: it wraps
+  `.open-next/worker.js` and adds a `scheduled` handler that wrangler's Cron Trigger (`* * * * *`)
+  runs. That handler calls `/api/cron/push` through the Next handler with a one-time token passed in
+  the env, which no outside request can carry (a `CRON_SECRET` bearer also works, by hand). Each due
+  row is claimed by moving `next_at` in the same UPDATE, so overlapping runs never double-send; more
+  than 30 minutes late it is skipped (a one-off becomes `missed`). A poster belongs to the schedule
+  until its first send, which writes the notice page; repeats reuse that page (`notice_id`). Test the
+  trigger under `npm run preview` with `GET http://127.0.0.1:8787/cdn-cgi/handler/scheduled?cron=*+*+*+*+*`.
+- **Parent meetings** (`lib/keda/meetings.ts`, console → Parent meetings): a meeting is for a batch
+  (and grade), or all KEDA students; every active student registered by its day is one family on the
+  register. Parents are scanned in with the child's card, and one scan also marks brothers and sisters
+  (same guardian phone). Ending a meeting marks the rest absent and runs `checkReminders()`: each
+  meeting that ends a run of two or more absences gets a `meeting_reminders` row (created only for
+  the newest; a corrected mark removes a reminder its run no longer supports; attending resolves
+  them). A new reminder is pushed, in Tamil and English (`lib/keda/meeting-text.ts`), only to the
+  family's own phones: `push_subscriptions.student_ids`, filled from the signed parent cookie when a
+  parent turns notifications on or opens the parent page with them on (`/api/push/link`), and cleared
+  on sign-out. The parent page shows the reminder in both languages and the family's meeting record;
+  staff get a "Parents to remind" list with a prefilled WhatsApp message.
 - **Site details** (`lib/site-settings.ts`, `/api/site-settings`, console → Site details): contact
   lines, the About page's text in both languages, class times, office bearers, and contact people
   (club or KEDA, name, phone — listed under Contact with call and WhatsApp links). The About page

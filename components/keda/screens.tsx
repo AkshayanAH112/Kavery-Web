@@ -38,3 +38,5 @@ export const OnlinePapersScreen = dynamic(() => import("./online-papers"), { ssr
 export const OnlinePaperScreen = dynamic(() => import("./online-paper"), { ssr: false, loading });
 export const OnlineResultsScreen = dynamic(() => import("./online-results"), { ssr: false, loading });
 export const AnalysisScreen = dynamic(() => import("./analysis"), { ssr: false, loading });
+export const MeetingsScreen = dynamic(() => import("./meetings"), { ssr: false, loading });
+export const MeetingDetailScreen = dynamic(() => import("./meeting-detail"), { ssr: false, loading });

@@ -16,6 +16,7 @@ import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { getDb, getSecret, schema } from "@/lib/db";
+import { meetingsForParent } from "@/lib/keda/meetings";
 import { papersForStudent } from "@/lib/keda/online";
 import { studentResults } from "@/lib/keda/results";
 import type { StudentRow } from "@/lib/keda/server";
@@ -140,11 +141,12 @@ type Notice = { kind: "leave"; date: string; leaveCount: number } | { kind: "res
 /** Everything one child's parent sees. Assembled field by field; nothing from the family's own record goes back out. */
 export async function childView(student: StudentRow) {
   const db = getDb();
-  const [{ published, ...results }, attendance, alerts, online] = await Promise.all([
+  const [{ published, ...results }, attendance, alerts, online, meetings] = await Promise.all([
     studentResults(student),
     attendanceFor(student),
     db.select().from(L).where(eq(L.studentId, student.id)).orderBy(desc(L.createdAt)).limit(6),
     papersForStudent(student),
+    meetingsForParent(student),
   ]);
 
   const notices: Notice[] = [
@@ -160,7 +162,7 @@ export async function childView(student: StudentRow) {
       ? `/api/public/parents/photo?student=${encodeURIComponent(student.registrationNumber)}&v=${student.photoKey.slice(-12, -4)}`
       : null;
 
-  return { ...results, photoUrl, attendance, notices, online };
+  return { ...results, photoUrl, attendance, notices, online, meetings };
 }
 
 /** KEDA's own published posts: the announcements every parent sees. */

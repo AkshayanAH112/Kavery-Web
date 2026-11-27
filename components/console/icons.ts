@@ -18,6 +18,7 @@ import {
   TriangleAlert,
   Trophy,
   UserCog,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -33,6 +34,7 @@ export const MODULE_ICONS: Record<string, LucideIcon> = {
   today: CalendarCheck,
   report: ClipboardList,
   alert: TriangleAlert,
+  meetings: UsersRound,
   analysis: BarChart3,
   marks: FileSpreadsheet,
   online: MonitorCheck,

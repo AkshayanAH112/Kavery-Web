@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { AlertCircle, BellRing, CalendarCheck, Check, Images, Loader2, LogOut, Megaphone, MonitorCheck, QrCode, UserPlus, UserRound, X } from "lucide-react";
+import { AlertCircle, BellRing, CalendarCheck, Check, Images, Loader2, LogOut, Megaphone, MonitorCheck, QrCode, UserPlus, UserRound, UsersRound, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import ResultsView, { CurrentExam, type ResultsPayload } from "@/components/site/ResultsView";
+import { nextMeetingText, type NextMeeting } from "@/lib/keda/meeting-text";
 
 type Notice = { kind: "leave"; date: string; leaveCount: number } | { kind: "result"; date: string; name: string };
 type OnlinePaper = {
@@ -23,6 +24,13 @@ type Child = ResultsPayload & {
   attendance: { marked: number; present: number; absent: number; percent: number | null; recent: { date: string; subject: string | null; time: string | null; present: boolean }[] };
   notices: Notice[];
   online: OnlinePaper[];
+  meetings?: {
+    attended: number;
+    total: number;
+    recent: { title: string; date: string; present: boolean }[];
+    next: NextMeeting | null;
+    reminder: { missed: number; text: { ta: string; en: string } } | null;
+  };
 };
 type Me = {
   children: Child[];
@@ -249,6 +257,21 @@ function ChildPanel({ child }: { child: Child }) {
       {/* An exam open right now comes first: it is the one thing on this page with a clock on it. */}
       {child.online.some((p) => p.status === "open" && !p.attempt?.finished) && <OnlineExams child={child} />}
 
+      {/* Asked for in both languages, whichever one the page is in: whoever reads it at home can. */}
+      {child.meetings?.reminder && (
+        <section role="alert" className="live-card border-2 border-brand p-6 md:p-8">
+          <h2 className="flex items-center gap-2 text-xl font-extrabold text-fg">
+            <UsersRound size={22} aria-hidden className="shrink-0 text-brand-text" /> {t("meeting_reminder_title")}
+          </h2>
+          <p lang="ta" className="mt-4 text-lg leading-relaxed text-fg">
+            {child.meetings.reminder.text.ta}
+          </p>
+          <p lang="en" className="mt-3 leading-relaxed text-muted-foreground">
+            {child.meetings.reminder.text.en}
+          </p>
+        </section>
+      )}
+
       {/* The rank in the latest exam leads: it is what a parent opens the page for after results come out. */}
       <CurrentExam results={child.results} />
 
@@ -303,6 +326,8 @@ function ChildPanel({ child }: { child: Child }) {
         </section>
       </div>
 
+      {child.meetings && <ParentMeetings meetings={child.meetings} />}
+
       {child.online.length > 0 && !child.online.some((p) => p.status === "open" && !p.attempt?.finished) && <OnlineExams child={child} />}
 
       <section>
@@ -311,6 +336,54 @@ function ChildPanel({ child }: { child: Child }) {
       </section>
     </div>
   );
+}
+
+function ParentMeetings({ meetings }: { meetings: NonNullable<Child["meetings"]> }) {
+  const t = useTranslations("Parents");
+  const locale = useLocale() === "ta" ? "ta" : "en";
+  return (
+    <section className="live-card p-6 md:p-8">
+      <h2 className="eyebrow flex items-center gap-2 text-accent">
+        <UsersRound size={16} aria-hidden /> {t("meetings_title")}
+      </h2>
+      <div className="mt-4 rounded-[var(--field-radius)] bg-surface-2/60 p-4">
+        <p className="text-sm font-semibold text-muted-foreground">{t("meetings_next")}</p>
+        <p className="mt-1 text-lg font-bold text-fg">{meetings.next ? nextMeetingText(meetings.next, locale) : t("meetings_no_next")}</p>
+      </div>
+      {meetings.total === 0 ? (
+        <p className="mt-4 text-muted-foreground">{t("meetings_empty")}</p>
+      ) : (
+        <>
+          <p className="mt-4 font-semibold text-fg">{t("meetings_count", { attended: meetings.attended, total: meetings.total })}</p>
+          <ul className="mt-2 divide-y divide-line">
+            {meetings.recent.map((m, i) => (
+              <li key={i} className="flex items-center justify-between gap-4 py-2.5 text-[0.9375rem]">
+                <span className="min-w-0">
+                  <span className="tabular text-fg">{formatDate(m.date)}</span>
+                  <span className="text-muted-foreground"> · {m.title}</span>
+                </span>
+                <span className={`inline-flex shrink-0 items-center gap-1 font-semibold ${m.present ? "text-ok" : "text-danger"}`}>
+                  {m.present ? <Check size={15} aria-hidden /> : <X size={15} aria-hidden />}
+                  {m.present ? t("meeting_came") : t("meeting_missed")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
+  );
+}
+
+/** This browser's push subscription, if notifications are already on here. */
+async function currentPushEndpoint() {
+  try {
+    if (!("serviceWorker" in navigator) || typeof Notification === "undefined" || Notification.permission !== "granted") return null;
+    const reg = await navigator.serviceWorker.getRegistration();
+    return (await reg?.pushManager.getSubscription())?.endpoint ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export default function ParentPortal() {
@@ -325,6 +398,11 @@ export default function ParentPortal() {
     try {
       const res = await fetch("/api/public/parents/me", { cache: "no-store" });
       setMe(res.ok ? ((await res.json()) as Me) : null);
+      // Notifications already on here: reminders about these children now reach this phone too.
+      if (res.ok) {
+        const endpoint = await currentPushEndpoint();
+        if (endpoint) void fetch("/api/push/link", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ endpoint }) }).catch(() => {});
+      }
     } catch {
       setMe(null);
     }
@@ -340,6 +418,8 @@ export default function ParentPortal() {
   }, [load]);
 
   const signOut = async () => {
+    const endpoint = await currentPushEndpoint();
+    if (endpoint) await fetch("/api/push/link", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ endpoint }) }).catch(() => {});
     await fetch("/api/public/parents/session", { method: "DELETE" }).catch(() => {});
     setMe(null);
   };

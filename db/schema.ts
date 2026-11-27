@@ -154,6 +154,74 @@ export const leaveAlerts = sqliteTable(
 );
 
 /**
+ * A parent meeting for KEDA: every active student of the batch (and grade, when
+ * set) is expected to send a parent. Parents are marked by scanning the child's
+ * card, as for classes. Ending the meeting marks everyone not scanned as absent;
+ * two absences in a row raise a reminder (lib/keda/meetings.ts).
+ */
+export const parentMeetings = sqliteTable(
+  "parent_meetings",
+  {
+    id: id(),
+    title: text("title").notNull(),
+    /** Null: every active KEDA student. */
+    batchId: text("batch_id").references(() => batches.id, { onDelete: "set null" }),
+    /** Null: every grade in the batch. */
+    grade: integer("grade"),
+    /** Midnight, Sri Lanka time, of the meeting's day. */
+    date: ts("date").notNull(),
+    time: text("time"),
+    venue: text("venue"),
+    notes: text("notes"),
+    endedAt: ts("ended_at"),
+    endedBy: text("ended_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("parent_meetings_date_idx").on(t.date)],
+);
+
+/** No row = not marked yet. present=false = a parent who did not come. Every row is one child's family. */
+export const meetingAttendance = sqliteTable(
+  "meeting_attendance",
+  {
+    id: id(),
+    meetingId: text("meeting_id").notNull().references(() => parentMeetings.id, { onDelete: "cascade" }),
+    studentId: text("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
+    present: bool("present").notNull().default(false),
+    markedBy: text("marked_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("meeting_attendance_uq").on(t.meetingId, t.studentId), index("meeting_attendance_student_idx").on(t.studentId)],
+);
+
+/**
+ * "You missed the last N parent meetings; please come to the next one." One per
+ * missed meeting once a run of absences reaches two, so it is raised once and
+ * never twice for the same meeting. Shown on the parent page in Tamil and English,
+ * pushed to the parent's phone when it is linked, and listed for staff to follow up.
+ */
+export const meetingReminders = sqliteTable(
+  "meeting_reminders",
+  {
+    id: id(),
+    studentId: text("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
+    /** The latest of the missed meetings. */
+    meetingId: text("meeting_id").notNull().references(() => parentMeetings.id, { onDelete: "cascade" }),
+    missed: integer("missed").notNull(),
+    // open | contacted (staff reached the family) | resolved (the parent came to a later meeting)
+    status: text("status").notNull().default("open"),
+    pushedAt: ts("pushed_at"),
+    contactedAt: ts("contacted_at"),
+    contactedBy: text("contacted_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("meeting_reminders_uq").on(t.studentId, t.meetingId), index("meeting_reminders_status_idx").on(t.status)],
+);
+
+/**
  * What a parent gets one result for. A Grade 4/5 test is two papers, Part 1 and Part 2 (the
  * scholarship exam's Paper I and Paper II), sat on one day or on different days, and its result is
  * their total. A model exam is a full mock: both parts on one day. A test with a single paper (a
@@ -514,6 +582,12 @@ export const pushSubscriptions = sqliteTable(
     userAgent: text("user_agent"),
     createdAt: createdAt(),
     lastSuccessAt: ts("last_success_at"),
+    /**
+     * The KEDA children of the parent who turned notifications on, read from their
+     * signed parent cookie (never from the request body). Lets a reminder about one
+     * child go to that family's phones only.
+     */
+    studentIds: json<string[]>("student_ids").notNull().default(sql`'[]'`),
   },
   (t) => [index("push_user_idx").on(t.userId)],
 );
@@ -533,3 +607,44 @@ export const pushLog = sqliteTable("push_log", {
   failed: integer("failed").notNull().default(0),
   createdAt: createdAt(),
 });
+
+/**
+ * A notification set to go out later, once or on a repeat. The once-a-minute Cron
+ * Trigger (worker.ts → /api/cron/push) sends every row whose `next_at` has come;
+ * the rules for the next time are in lib/push-schedule.ts. Times are Sri Lanka time.
+ *
+ * A poster is owned here (`image`, `image_key`) only until the first send. That send
+ * writes the notice page as a push_log row and points `notice_id` at it; repeats then
+ * reuse that one page instead of adding a page per send.
+ */
+export const pushSchedules = sqliteTable(
+  "push_schedules",
+  {
+    id: id(),
+    topic: text("topic").notNull(),
+    title: text("title").notNull(),
+    body: text("body"),
+    url: text("url"),
+    image: text("image"),
+    imageKey: text("image_key"),
+    noticeId: text("notice_id").references(() => pushLog.id, { onDelete: "set null" }),
+    // once | daily | weekly | monthly
+    repeat: text("repeat").notNull(),
+    startDate: text("start_date").notNull(), // YYYY-MM-DD, the date for "once"
+    time: text("time").notNull(), // HH:MM
+    days: json<number[]>("days").notNull().default(sql`'[]'`), // weekly: 0 = Sunday
+    dayOfMonth: integer("day_of_month"), // monthly: 1–31, the last day in shorter months
+    endDate: text("end_date"), // YYYY-MM-DD, inclusive
+    // active | paused | missed (a one-off whose time passed while it could not be sent)
+    status: text("status").notNull().default("active"),
+    nextAt: ts("next_at"),
+    lastSentAt: ts("last_sent_at"),
+    lastDelivered: integer("last_delivered"),
+    lastMissedAt: ts("last_missed_at"),
+    sends: integer("sends").notNull().default(0),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("push_schedules_due_idx").on(t.status, t.nextAt)],
+);

@@ -1,7 +1,8 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { buildPushPayload } from "@block65/webcrypto-web-push";
-import { desc, inArray, isNotNull } from "drizzle-orm";
+import { desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { getDb, getSecret, schema } from "@/lib/db";
+import { noticePath } from "./notices";
 import { PUSH_TOPICS, type PushTopic } from "./push-topics";
 
 export function isPushConfigured() {
@@ -48,9 +49,33 @@ const LIMIT = 300;
 
 export async function sendPushToTopic(topic: PushTopic, content: PushContent) {
   if (!isPushConfigured()) return { delivered: 0, failed: 0, skipped: 0, configured: false };
+  const all = await getDb().select().from(schema.pushSubscriptions);
+  return deliver(
+    all.filter((s) => s.topics.includes(topic)),
+    content,
+    topic,
+  );
+}
+
+/**
+ * To the phones of the families of these KEDA students only: the devices on which
+ * a parent signed in to the parent page with that child's card turned on
+ * notifications. Nobody else's device receives it, whatever topics they follow.
+ */
+export async function sendPushToFamilies(studentIds: string[], content: PushContent) {
+  // Called with one family at a time; D1 takes at most 100 bound values per statement.
+  studentIds = studentIds.slice(0, 50);
+  if (!isPushConfigured() || studentIds.length === 0) return { delivered: 0, failed: 0, skipped: 0, configured: isPushConfigured() };
+  const P = schema.pushSubscriptions;
+  const targets = await getDb()
+    .select()
+    .from(P)
+    .where(sql`exists (select 1 from json_each(${P.studentIds}) where json_each.value in ${studentIds})`);
+  return deliver(targets, content, "keda");
+}
+
+async function deliver(targets: (typeof schema.pushSubscriptions.$inferSelect)[], content: PushContent, topic: PushTopic) {
   const db = getDb();
-  const all = await db.select().from(schema.pushSubscriptions);
-  const targets = all.filter((s) => s.topics.includes(topic));
   const batch = targets.slice(0, LIMIT);
 
   const vapid = {
@@ -83,10 +108,45 @@ export async function sendPushToTopic(topic: PushTopic, content: PushContent) {
     }),
   );
 
-  if (gone.length) await db.delete(schema.pushSubscriptions).where(inArray(schema.pushSubscriptions.id, gone));
-  if (ok.length) await db.update(schema.pushSubscriptions).set({ lastSuccessAt: new Date() }).where(inArray(schema.pushSubscriptions.id, ok));
+  // In pieces of 50: D1 takes at most 100 bound values per statement.
+  for (let i = 0; i < gone.length; i += 50) await db.delete(schema.pushSubscriptions).where(inArray(schema.pushSubscriptions.id, gone.slice(i, i + 50)));
+  for (let i = 0; i < ok.length; i += 50) await db.update(schema.pushSubscriptions).set({ lastSuccessAt: new Date() }).where(inArray(schema.pushSubscriptions.id, ok.slice(i, i + 50)));
 
   return { delivered: ok.length, failed: failed + gone.length, skipped: targets.length - batch.length, configured: true };
+}
+
+/**
+ * One send as the console makes it: the history row first (a notification with a
+ * poster opens that row's notice page), then the delivery, then the counts.
+ * `poster` passes ownership of the uploaded file to the new notice page;
+ * `noticeId` instead reuses an existing page, as a repeating schedule does.
+ */
+export async function sendAndLog(input: {
+  topic: PushTopic;
+  title: string;
+  body?: string | null;
+  url?: string | null;
+  poster?: { url: string; key: string } | null;
+  notice?: { id: string; image: string } | null;
+  sentBy?: string | null;
+}) {
+  const { topic, title, poster, notice } = input;
+  const body = input.body || undefined;
+  const url = input.url || undefined;
+  const db = getDb();
+  const [entry] = await db
+    .insert(schema.pushLog)
+    .values({ topic, title, body, url, image: poster?.url, imageKey: poster?.key, sentBy: input.sentBy ?? null })
+    .returning({ id: schema.pushLog.id });
+
+  const page = poster ? { id: entry.id, image: poster.url } : notice;
+  const result = await sendPushToTopic(
+    topic,
+    // The notice page carries the staff link as its "More details" button.
+    page ? { title, body, url: noticePath(page.id), image: page.image, tag: `notice-${page.id}` } : { title, body, url },
+  );
+  await db.update(schema.pushLog).set({ delivered: result.delivered, failed: result.failed }).where(eq(schema.pushLog.id, entry.id));
+  return { ...result, logId: entry.id, notice: page ? noticePath(page.id, "en") : null };
 }
 
 /**

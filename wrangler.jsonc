@@ -1,7 +1,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "kavery-sports-club",
-  "main": ".open-next/worker.js",
+  // worker.ts wraps the OpenNext build (.open-next/worker.js) and adds the Cron Trigger handler.
+  "main": "worker.ts",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   // html_handling none: serve /offline.html as-is. The default redirects it to /offline, and a
@@ -32,5 +33,7 @@
   // Keeps the workers.dev address alive as well (declaring routes would otherwise switch it off).
   "workers_dev": true,
   "vars": { "APP_URL": "https://periyaneelavanaikaverysports.club" },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  // Once a minute: sends the scheduled notifications that are due (worker.ts → /api/cron/push).
+  "triggers": { "crons": ["* * * * *"] }
 }

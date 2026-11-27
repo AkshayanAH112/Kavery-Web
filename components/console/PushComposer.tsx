@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from "react";
-import { ExternalLink, ImagePlus, Loader2, RefreshCw, Smartphone, Trash2 } from "lucide-react";
-import type { PushOverview } from "@/lib/push";
+import { CalendarClock, ExternalLink, ImagePlus, Loader2, RefreshCw, Send, Smartphone, Trash2 } from "lucide-react";
+import type { PushConsole } from "@/lib/push-schedules";
 import { PUSH_TOPICS, type PushTopic } from "@/lib/push-topics";
 import { POSTER, uploadImage } from "@/lib/upload-client";
 import { NoticeManager } from "./NoticeManager";
+import { ScheduleFields, formatWhen, newDraft, ruleFrom, type ScheduleDraft } from "./ScheduleFields";
+import { ScheduleManager } from "./ScheduleManager";
 import { Badge, Button, Card, CardHeader, Field, Note, fieldClass } from "./ui";
 
 const TOPIC_LABELS: Record<PushTopic, string> = {
@@ -29,12 +31,14 @@ const timeFormat = new Intl.DateTimeFormat("en-GB", {
   minute: "2-digit",
 });
 
-export function PushComposer({ initial }: { initial: PushOverview }) {
+export function PushComposer({ initial }: { initial: PushConsole }) {
   const [overview, setOverview] = useState(initial);
   const [topic, setTopic] = useState<PushTopic>("cricket");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [poster, setPoster] = useState<PosterState>({ status: "none" });
+  const [when, setWhen] = useState<"now" | "later">("now");
+  const [draft, setDraft] = useState<ScheduleDraft | null>(null);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{
@@ -55,7 +59,7 @@ export function PushComposer({ initial }: { initial: PushOverview }) {
 
   async function refresh() {
     const res = await fetch("/api/push/send");
-    if (res.ok) setOverview((await res.json()) as PushOverview);
+    if (res.ok) setOverview((await res.json()) as PushConsole);
   }
 
   async function choosePoster(file: File | undefined) {
@@ -101,17 +105,42 @@ export function PushComposer({ initial }: { initial: PushOverview }) {
     const form = new FormData(formEl);
     setBusy(true);
     setMessage(null);
+    const content = {
+      topic,
+      title,
+      body: body || undefined,
+      url: (form.get("url") as string) || undefined,
+      image: poster.status === "ready" ? { url: poster.url, publicId: poster.publicId } : undefined,
+    };
+    const reset = async () => {
+      formEl.reset();
+      setTitle("");
+      setBody("");
+      removePoster();
+      await refresh();
+    };
+    if (when === "later") {
+      try {
+        const rule = draft && ruleFrom(draft);
+        if (!rule) throw new Error("Choose the date and time it should go out.");
+        const res = await fetch("/api/push/schedules", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...content, rule }) });
+        const data = (await res.json().catch(() => ({}))) as { error?: string; nextAt?: number };
+        if (!res.ok) throw new Error(data.error ?? "Could not schedule it. Try again.");
+        setMessage({ tone: "success", text: `Scheduled. ${rule.repeat === "once" ? "It goes out" : "The first one goes out"} ${formatWhen(data.nextAt!)}. You can change it under Scheduled.` });
+        setDraft(newDraft());
+        await reset();
+      } catch (e) {
+        setMessage({ tone: "error", text: e instanceof Error ? e.message : "Could not schedule it. Try again." });
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     try {
       const res = await fetch("/api/push/send", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          topic,
-          title,
-          body: body || undefined,
-          url: form.get("url") || undefined,
-          image: poster.status === "ready" ? { url: poster.url, publicId: poster.publicId } : undefined,
-        }),
+        body: JSON.stringify(content),
       });
       const data = (await res.json()) as {
         error?: string;
@@ -129,11 +158,7 @@ export function PushComposer({ initial }: { initial: PushOverview }) {
         text: parts.join(" "),
         notice: data.notice,
       });
-      formEl.reset();
-      setTitle("");
-      setBody("");
-      removePoster();
-      await refresh();
+      await reset();
     } catch (e) {
       setMessage({
         tone: "error",
@@ -242,6 +267,37 @@ export function PushComposer({ initial }: { initial: PushOverview }) {
             >
               <input name="url" placeholder="/en/news" pattern="/.*" maxLength={300} className={fieldClass} />
             </Field>
+            <fieldset>
+              <legend className="mb-1.5 block text-sm font-semibold">When</legend>
+              <div className="grid grid-cols-2 gap-2">
+                {(
+                  [
+                    ["now", "Send now", Send],
+                    ["later", "Schedule", CalendarClock],
+                  ] as const
+                ).map(([value, label, Icon]) => (
+                  <label
+                    key={value}
+                    className={`flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-[var(--field-radius)] border px-3 text-[0.9375rem] font-semibold transition-colors has-[:focus-visible]:outline-2 ${when === value ? "border-fg bg-surface text-fg" : "border-line bg-surface text-muted-foreground hover:bg-muted"}`}
+                  >
+                    <input
+                      type="radio"
+                      name="when"
+                      value={value}
+                      checked={when === value}
+                      onChange={() => {
+                        setWhen(value);
+                        if (value === "later" && !draft) setDraft(newDraft());
+                      }}
+                      className="sr-only"
+                    />
+                    <Icon size={16} aria-hidden /> {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {when === "later" && draft && <ScheduleFields value={draft} onChange={setDraft} />}
+
             {message && (
               <Note tone={message.tone}>
                 {message.text}{" "}
@@ -252,13 +308,17 @@ export function PushComposer({ initial }: { initial: PushOverview }) {
                 )}
               </Note>
             )}
-            <Button type="submit" disabled={busy || uploading || posterProblem || !overview.configured || audience === 0}>
-              {busy ? "Sending…" : uploading ? "Waiting for the poster…" : "Send notification"}
+            <Button type="submit" disabled={busy || uploading || posterProblem || !overview.configured || (when === "now" && audience === 0) || (when === "later" && !(draft && ruleFrom(draft)))}>
+              {when === "later" ? <CalendarClock size={16} aria-hidden /> : <Send size={16} aria-hidden />}
+              {busy ? (when === "later" ? "Scheduling…" : "Sending…") : uploading ? "Waiting for the poster…" : when === "later" ? "Schedule notification" : "Send notification"}
             </Button>
-            {overview.configured && audience === 0 && <p className="text-sm text-muted-foreground">Nobody follows this topic yet, so there is no one to send to.</p>}
+            {overview.configured && audience === 0 && (
+              <p className="text-sm text-muted-foreground">{when === "later" ? "Nobody follows this topic yet. It goes to whoever follows it by then." : "Nobody follows this topic yet, so there is no one to send to."}</p>
+            )}
           </form>
         </Card>
 
+        <ScheduleManager schedules={overview.schedules} topicLabels={TOPIC_LABELS} configured={overview.configured} onChanged={refresh} />
         <NoticeManager notices={overview.notices} topicLabels={TOPIC_LABELS} onChanged={refresh} />
       </div>
 

@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
+import { getParentChildren } from "@/lib/keda/parent";
 import { PUBLIC_PUSH_TOPICS, type PushTopic } from "@/lib/push-topics";
 import { isLocale } from "@/i18n/config";
 
@@ -25,6 +26,8 @@ export async function POST(request: Request) {
   const topics: PushTopic[] = [...new Set<PushTopic>([...parsed.data.topics, ...(session ? (["staff"] as const) : [])])];
 
   const { endpoint, keys } = parsed.data.subscription;
+  // A parent signed in on the parent page: reminders about their children reach this phone.
+  const studentIds = (await getParentChildren()).map((s) => s.id);
   const values = {
     endpoint,
     p256dh: keys.p256dh,
@@ -37,8 +40,8 @@ export async function POST(request: Request) {
 
   await getDb()
     .insert(schema.pushSubscriptions)
-    .values(values)
-    .onConflictDoUpdate({ target: schema.pushSubscriptions.endpoint, set: values });
+    .values({ ...values, studentIds })
+    .onConflictDoUpdate({ target: schema.pushSubscriptions.endpoint, set: studentIds.length ? { ...values, studentIds } : values });
   return Response.json({ ok: true, topics });
 }
 
