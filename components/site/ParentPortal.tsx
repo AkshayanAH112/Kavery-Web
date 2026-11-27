@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { AlertCircle, BellRing, CalendarCheck, Check, Loader2, LogOut, Megaphone, MonitorCheck, QrCode, UserPlus, UserRound, X } from "lucide-react";
+import { AlertCircle, BellRing, CalendarCheck, Check, Images, Loader2, LogOut, Megaphone, MonitorCheck, QrCode, UserPlus, UserRound, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import ResultsView, { CurrentExam, type ResultsPayload } from "@/components/site/ResultsView";
 
@@ -24,7 +24,11 @@ type Child = ResultsPayload & {
   notices: Notice[];
   online: OnlinePaper[];
 };
-type Me = { children: Child[]; announcements: { title: string; slug: string; excerpt: string | null; publishedAt: string | null }[] };
+type Me = {
+  children: Child[];
+  announcements: { title: string; slug: string; excerpt: string | null; publishedAt: string | null }[];
+  posters?: { id: string; title: string; image: string; sentAt: string }[];
+};
 
 const SCANNER_ID = "parent-card-scanner";
 const inputClass =
@@ -397,6 +401,33 @@ export default function ParentPortal() {
       ) : (
         <>
           <ChildPanel key={child.student.registrationNumber} child={child} />
+
+          {me.posters && me.posters.length > 0 && (
+            <section className="live-card p-6 md:p-8">
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <h2 className="eyebrow flex items-center gap-2 text-accent">
+                  <Images size={16} aria-hidden /> {t("posters_title")}
+                </h2>
+                <Link href={`/${locale}/notices`} className="inline-flex min-h-11 items-center text-sm font-semibold text-muted-foreground hover:text-fg">
+                  {t("posters_all")}
+                </Link>
+              </div>
+              <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {me.posters.map((p) => (
+                  <li key={p.id}>
+                    <Link href={`/${locale}/notices/${p.id}`} className="group block overflow-hidden rounded-[var(--card-radius)] border border-line bg-surface-2 transition-colors hover:border-accent">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- already sized before upload */}
+                      <img src={p.image} alt={p.title} loading="lazy" className="aspect-[4/5] w-full object-cover object-top" />
+                      <span className="block p-3">
+                        <span className="line-clamp-2 font-bold leading-snug text-fg group-hover:text-accent">{p.title}</span>
+                        <span className="mt-1 block text-sm text-muted-foreground">{formatDate(p.sentAt)}</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <section className="live-card p-6 md:p-8">
             <h2 className="eyebrow flex items-center gap-2 text-accent">

@@ -10,6 +10,8 @@ export const MEDIA_FOLDERS: Record<string, { permission: Permission; public: boo
   gallery: { permission: "content.manage", public: true },
   // Committee photos and sponsor logos for the About page (Site details).
   site: { permission: "site.manage", public: true },
+  // Posters sent with a push notification, shown full size on /[locale]/notices/<id>.
+  notices: { permission: "push.send", public: true },
 };
 
 /**

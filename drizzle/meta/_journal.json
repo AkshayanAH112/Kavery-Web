@@ -29,6 +29,13 @@
       "when": 1792677519173,
       "tag": "0003_online_exams",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1795783946347,
+      "tag": "0004_push_posters",
+      "breakpoints": true
     }
   ]
 }

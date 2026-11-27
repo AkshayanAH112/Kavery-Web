@@ -224,6 +224,16 @@ database page returning 500 until it is restarted.
   page shows the photo through its own route, `GET /api/public/parents/photo?student=<index number>`,
   which serves it only to a browser whose `ksc_parent` cookie names that child (`signedInChild()`);
   `childView()` gives the address as `photoUrl`, never the storage key.
+- **Posters on notifications** (`lib/notices.ts`, `components/site/Poster.tsx`, `/[locale]/notices`):
+  the composer (console → Notifications) can attach a poster. It is uploaded to `notices/` in R2 at
+  2400px (`POSTER` in `lib/upload-client.ts`, so small print survives) and accepted by `/api/push/send`
+  only through `ownMedia(…, "notices")`. The `push_log` row is written first, because a notification
+  with a poster opens `/{locale}/notices/<row id>`; the staff link becomes that page's "More details"
+  button. The service worker passes the poster as the notification's `image` (Android and desktop
+  draw it cropped to a wide strip; iPhones show text only), so the page is where it is read: whole,
+  with a full-screen zoom viewer and a Save button (share sheet on phones). `/[locale]/notices` lists
+  the public topics' posters, and the parent page shows KEDA's latest three. A `staff`-topic poster
+  opens only for a signed-in staff member and is never listed.
 - **Site details** (`lib/site-settings.ts`, `/api/site-settings`, console → Site details): contact
   lines, the About page's text in both languages, class times, office bearers, and contact people
   (club or KEDA, name, phone — listed under Contact with call and WhatsApp links). The About page

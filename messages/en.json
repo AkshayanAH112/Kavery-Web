@@ -16,7 +16,8 @@
     "languageLabel": "Read this site in Tamil",
     "home": "Home",
     "join": "Join",
-    "about": "About"
+    "about": "About",
+    "notices": "Notices"
   },
   "hero": {
     "eyebrow": "Periyaneelavanai · Since 1981",
@@ -573,7 +574,9 @@
     "online_missed": "Not sat",
     "online_score": "Score: {score} / {max}",
     "online_score_pending": "{count, plural, =1 {1 written answer} other {# written answers}} still to be marked",
-    "online_exam_result": "The marks come with the results"
+    "online_exam_result": "The marks come with the results",
+    "posters_title": "Posters from KEDA",
+    "posters_all": "All notices"
   },
   "about": {
     "eyebrow": "About",
@@ -645,5 +648,32 @@
     "shared_device": "On a shared phone or a class tablet, sign out on the parent page when you finish.",
     "picture_alt": "Picture for the question",
     "option_picture_alt": "Picture for answer {n}"
+  },
+  "Notices": {
+    "eyebrow": "Notices",
+    "title": "Posters and notices",
+    "lead": "Every poster the club and KEDA have sent as a notification, kept here in full size. Tap one to read it.",
+    "empty": "When the club sends a poster to phones, it will be kept here too.",
+    "topic_keda": "KEDA notice",
+    "topic_news": "Club notice",
+    "topic_cricket": "Cricket",
+    "topic_staff": "Staff only",
+    "zoom_hint": "Tap the poster to see it on the whole screen. Pinch or double-tap to zoom in.",
+    "viewer_hint": "Pinch or double-tap to zoom. Drag to move around.",
+    "open": "Open the poster on the whole screen",
+    "tap_zoom": "Tap to zoom",
+    "save": "Save poster",
+    "saving": "Saving…",
+    "more": "More details",
+    "close": "Close",
+    "zoom_in": "Zoom in",
+    "zoom_out": "Zoom out",
+    "fit": "Fit to screen",
+    "earlier": "Earlier notices",
+    "all": "All notices",
+    "alerts_cta": "Get these on your phone",
+    "poster_alt": "Poster: {title}",
+    "meta_title": "Notices",
+    "meta_description": "Posters and notices from Kavery Sports Club and KEDA, in full size."
   }
 }

@@ -1,6 +1,7 @@
 /*
  * Kavery service worker. Deliberately small:
- *   - shows push notifications and opens the right page when one is tapped
+ *   - shows push notifications (with a poster, where the platform draws one)
+ *     and opens the right page when one is tapped
  *   - serves an offline page when a navigation fails
  * It does NOT cache pages or API responses. Scores and registers must never be
  * served stale, and a cached admin page is how people end up acting on old data.
@@ -39,15 +40,19 @@ self.addEventListener("push", (event) => {
   } catch {
     data = { title: event.data ? event.data.text() : "" };
   }
-  event.waitUntil(
-    self.registration.showNotification(data.title || "Kavery Sports Club", {
-      body: data.body || "",
-      icon: "/icons/icon-192.png",
-      badge: "/icons/badge-96.png",
-      tag: data.tag || data.topic || "kavery",
-      data: { url: typeof data.url === "string" && data.url.startsWith("/") ? data.url : "/" },
-    }),
-  );
+  const sameSite = (value) => typeof value === "string" && value.startsWith("/") && !value.startsWith("//");
+  const options = {
+    body: data.body || "",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/badge-96.png",
+    tag: data.tag || data.topic || "kavery",
+    data: { url: sameSite(data.url) ? data.url : "/" },
+  };
+  // Android and desktop Chrome/Edge show this as a large picture under the text
+  // (cropped to a wide strip). iPhones ignore it; the notice page it opens shows
+  // the whole poster either way.
+  if (sameSite(data.image)) options.image = data.image;
+  event.waitUntil(self.registration.showNotification(data.title || "Kavery Sports Club", options));
 });
 
 self.addEventListener("notificationclick", (event) => {

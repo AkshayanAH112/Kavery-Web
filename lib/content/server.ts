@@ -36,7 +36,7 @@ export async function readBody(request: Request): Promise<Record<string, any> | 
  * hot-link any address, and "delete this image" could be pointed at any object
  * in the bucket.
  */
-export function ownMedia(url: unknown, key: unknown, folder: "news" | "gallery"): { url: string; key: string } | null {
+export function ownMedia(url: unknown, key: unknown, folder: "news" | "gallery" | "notices"): { url: string; key: string } | null {
   if (typeof url !== "string" || typeof key !== "string") return null;
   if (!MEDIA_FOLDERS[folder] || !new RegExp(`^${folder}/\\d{4}/[\\w-]+\\.(jpg|png|webp)$`).test(key)) return null;
   return url === `/media/${key}` ? { url, key } : null;

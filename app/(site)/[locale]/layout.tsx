@@ -128,6 +128,7 @@ export default async function SiteLayout({ children, params }: LayoutProps<"/[lo
     // Always offered, even before the first post or album: the club asked for them to be findable.
     { href: `${base}/news`, label: t("nav.news") },
     { href: `${base}/gallery`, label: t("nav.gallery") },
+    { href: `${base}/notices`, label: t("nav.notices") },
     { href: `${base}/membership`, label: t("nav.join") },
   ];
 

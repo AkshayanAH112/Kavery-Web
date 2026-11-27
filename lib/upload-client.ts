@@ -11,11 +11,19 @@
 const MAX_SIDE = 1600;
 const QUALITY = 0.82;
 
-export async function shrinkImage(file: File): Promise<File> {
+/**
+ * A poster is read, not glanced at: small print on it has to survive. It keeps more
+ * pixels and a higher quality than a photo (still well under the 4 MB upload cap).
+ */
+export const POSTER = { maxSide: 2400, quality: 0.9 } as const;
+
+type Shrink = { maxSide?: number; quality?: number };
+
+export async function shrinkImage(file: File, { maxSide = MAX_SIDE, quality = QUALITY }: Shrink = {}): Promise<File> {
   if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return file; // the server will refuse it with a clear message
   try {
     const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-    const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
     // Already small and light: keep the original rather than re-encode it for nothing.
     if (scale === 1 && file.size < 400_000) return file;
 
@@ -26,7 +34,7 @@ export async function shrinkImage(file: File): Promise<File> {
     bitmap.close();
 
     for (const type of ["image/webp", "image/jpeg"]) {
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, QUALITY));
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality));
       if (blob && blob.type === type) return new File([blob], file.name.replace(/\.\w+$/, type === "image/webp" ? ".webp" : ".jpg"), { type });
     }
   } catch {
@@ -58,9 +66,9 @@ export async function uploadMany<T>(files: File[], upload: (file: File) => Promi
 }
 
 /** Shrinks, then uploads to R2. Throws with the server's own message on failure. */
-export async function uploadImage(file: File, folder: "news" | "gallery" | "cricket" | "site"): Promise<{ url: string; publicId: string }> {
+export async function uploadImage(file: File, folder: "news" | "gallery" | "cricket" | "site" | "notices", shrink?: Shrink): Promise<{ url: string; publicId: string }> {
   const body = new FormData();
-  body.append("file", await shrinkImage(file));
+  body.append("file", await shrinkImage(file, shrink));
   body.append("folder", folder);
   const res = await fetch("/api/upload", { method: "POST", body });
   const data = (await res.json().catch(() => ({}))) as { url?: string; publicId?: string; error?: string };

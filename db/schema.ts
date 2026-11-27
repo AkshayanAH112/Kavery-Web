@@ -524,6 +524,10 @@ export const pushLog = sqliteTable("push_log", {
   title: text("title").notNull(),
   body: text("body"),
   url: text("url"),
+  // A poster sent with the notification (public, under notices/ in R2). The notification then
+  // opens /[locale]/notices/<id>, and `url` becomes the "More details" link on that page.
+  image: text("image"),
+  imageKey: text("image_key"),
   sentBy: text("sent_by").references(() => users.id, { onDelete: "set null" }),
   delivered: integer("delivered").notNull().default(0),
   failed: integer("failed").notNull().default(0),

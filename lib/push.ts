@@ -19,12 +19,13 @@ export async function getPushOverview() {
     configured: isPushConfigured(),
     total: subs.length,
     counts: Object.fromEntries(PUSH_TOPICS.map((t) => [t, subs.filter((s) => s.topics.includes(t)).length])) as Record<PushTopic, number>,
-    log: log.map((entry) => ({ id: entry.id, topic: entry.topic, title: entry.title, delivered: entry.delivered, failed: entry.failed, createdAt: entry.createdAt.getTime() })),
+    log: log.map((entry) => ({ id: entry.id, topic: entry.topic, title: entry.title, image: entry.image, delivered: entry.delivered, failed: entry.failed, createdAt: entry.createdAt.getTime() })),
   };
 }
 export type PushOverview = Awaited<ReturnType<typeof getPushOverview>>;
 
-export type PushContent = { title: string; body?: string; url?: string; tag?: string };
+/** `image` is a same-site poster address; Android and desktop browsers show it large in the notification. */
+export type PushContent = { title: string; body?: string; url?: string; tag?: string; image?: string };
 
 /**
  * Each delivery is a subrequest to the browser vendor's push service. The Worker
