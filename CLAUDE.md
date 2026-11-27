@@ -233,7 +233,10 @@ database page returning 500 until it is restarted.
   draw it cropped to a wide strip; iPhones show text only), so the page is where it is read: whole,
   with a full-screen zoom viewer and a Save button (share sheet on phones). `/[locale]/notices` lists
   the public topics' posters, and the parent page shows KEDA's latest three. A `staff`-topic poster
-  opens only for a signed-in staff member and is never listed.
+  opens only for a signed-in staff member and is never listed. Console → Notifications → Notice pages
+  edits (`PATCH /api/push/notices/[id]`: title, message, link, replace the poster) or deletes one
+  (`DELETE`: clears `image`/`image_key` and removes the file; the send stays in the history). A
+  notification already on phones cannot be changed or recalled — only the page it opens.
 - **Site details** (`lib/site-settings.ts`, `/api/site-settings`, console → Site details): contact
   lines, the About page's text in both languages, class times, office bearers, and contact people
   (club or KEDA, name, phone — listed under Contact with call and WhatsApp links). The About page

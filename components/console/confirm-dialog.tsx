@@ -16,6 +16,7 @@ export function Modal({
   tone = "default",
   children,
   footer,
+  wide,
 }: {
   open: boolean;
   onClose: () => void;
@@ -24,12 +25,14 @@ export function Modal({
   tone?: "default" | "danger";
   children?: React.ReactNode;
   footer: React.ReactNode;
+  /** A form needs more room than a yes/no question. */
+  wide?: boolean;
 }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-card rounded-[var(--card-radius)] max-w-sm w-full max-h-[calc(100dvh-2rem)] overflow-y-auto p-6 sm:p-8 border border-border shadow-2xl"
+        className={`bg-card rounded-[var(--card-radius)] ${wide ? "max-w-xl" : "max-w-sm"} w-full max-h-[calc(100dvh-2rem)] overflow-y-auto p-6 sm:p-8 border border-border shadow-2xl`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-3">

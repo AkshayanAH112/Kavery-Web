@@ -1,6 +1,6 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { buildPushPayload } from "@block65/webcrypto-web-push";
-import { desc, inArray } from "drizzle-orm";
+import { desc, inArray, isNotNull } from "drizzle-orm";
 import { getDb, getSecret, schema } from "@/lib/db";
 import { PUSH_TOPICS, type PushTopic } from "./push-topics";
 
@@ -11,15 +11,24 @@ export function isPushConfigured() {
 /** Subscriber counts per topic and the most recent sends, for the console page. */
 export async function getPushOverview() {
   const db = getDb();
-  const [subs, log] = await Promise.all([
+  const L = schema.pushLog;
+  const [subs, log, notices] = await Promise.all([
     db.select({ topics: schema.pushSubscriptions.topics }).from(schema.pushSubscriptions),
-    db.select().from(schema.pushLog).orderBy(desc(schema.pushLog.createdAt)).limit(15),
+    db.select().from(L).orderBy(desc(L.createdAt)).limit(15),
+    // Every notice page that is still up, for editing and deleting.
+    db
+      .select({ id: L.id, topic: L.topic, title: L.title, body: L.body, url: L.url, image: L.image, createdAt: L.createdAt })
+      .from(L)
+      .where(isNotNull(L.image))
+      .orderBy(desc(L.createdAt))
+      .limit(200),
   ]);
   return {
     configured: isPushConfigured(),
     total: subs.length,
     counts: Object.fromEntries(PUSH_TOPICS.map((t) => [t, subs.filter((s) => s.topics.includes(t)).length])) as Record<PushTopic, number>,
     log: log.map((entry) => ({ id: entry.id, topic: entry.topic, title: entry.title, image: entry.image, delivered: entry.delivered, failed: entry.failed, createdAt: entry.createdAt.getTime() })),
+    notices: notices.map((n) => ({ id: n.id, topic: n.topic, title: n.title, body: n.body ?? "", url: n.url ?? "", image: n.image!, createdAt: n.createdAt.getTime() })),
   };
 }
 export type PushOverview = Awaited<ReturnType<typeof getPushOverview>>;
