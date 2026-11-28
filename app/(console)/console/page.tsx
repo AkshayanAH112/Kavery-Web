@@ -213,7 +213,7 @@ export default async function ConsoleHome({ searchParams }: PageProps<"/console"
 
         {education && (
           <Card className="p-6">
-            <CardHeader title="Leave alerts" description="Students who have reached 2 or 3 leaves" />
+            <CardHeader title="Leave alerts" description="Students at 2 or 3 leaves, or locked for missing 2 classes in a row" />
             {education.alerts.length === 0 ? (
               <div className="mt-6">
                 <EmptyState title="Nothing needs follow-up">A student is listed here after a second leave, and escalated after a third.</EmptyState>
@@ -223,7 +223,7 @@ export default async function ConsoleHome({ searchParams }: PageProps<"/console"
                 {education.alerts.map((alert) => (
                   <li key={alert.id} className="flex items-center gap-3">
                     <IconTile>
-                      {alert.type === "admin_critical" ? (
+                      {alert.type !== "parent_warning" ? (
                         <TriangleAlert aria-hidden className="h-4.5 w-4.5 text-danger" strokeWidth={1.75} />
                       ) : (
                         <GraduationCap aria-hidden className="h-4.5 w-4.5" strokeWidth={1.75} />
@@ -233,7 +233,9 @@ export default async function ConsoleHome({ searchParams }: PageProps<"/console"
                       <p className="truncate font-semibold">{alert.name}</p>
                       <p className="truncate text-sm text-muted-foreground">{alert.registrationNumber ?? "No index number"}</p>
                     </div>
-                    <Badge tone={alert.type === "admin_critical" ? "danger" : "warn"}>{alert.leaveCount} leaves</Badge>
+                    <Badge tone={alert.type === "parent_warning" ? "warn" : "danger"}>
+                      {alert.type === "absence_lock" ? `Locked · ${alert.leaveCount} in a row` : `${alert.leaveCount} leaves`}
+                    </Badge>
                   </li>
                 ))}
               </ul>

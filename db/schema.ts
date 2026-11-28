@@ -126,6 +126,12 @@ export const attendance = sqliteTable(
     /** Whether this row has already been added to the student's leave counters. */
     countedAsLeave: bool("counted_as_leave").notNull().default(false),
     leaveCycleAtRecord: integer("leave_cycle_at_record"),
+    /**
+     * The student's `cycleGeneration` when this leave was counted. Only leaves of the
+     * current generation make a "two in a row" run, so a reactivated (or promoted)
+     * student starts clean. Null on leaves counted before the rule existed.
+     */
+    leaveGeneration: integer("leave_generation"),
     remarks: text("remarks"),
     markedBy: text("marked_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: createdAt(),
@@ -134,7 +140,10 @@ export const attendance = sqliteTable(
   (t) => [uniqueIndex("attendance_student_class_uq").on(t.studentId, t.classId), index("attendance_class_idx").on(t.classId)],
 );
 
-/** Leave alerts: 2 leaves warns the parent, 3 escalates to an admin. */
+/**
+ * Leave alerts: 2 leaves warns the parent, 3 escalates to an admin, and two classes
+ * missed in a row deactivate the student until an administrator reactivates them.
+ */
 export const leaveAlerts = sqliteTable(
   "leave_alerts",
   {
@@ -142,7 +151,7 @@ export const leaveAlerts = sqliteTable(
     studentId: text("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
     registrationNumber: text("registration_number"),
     studentName: text("student_name"),
-    type: text("type").notNull(), // parent_warning | admin_critical
+    type: text("type").notNull(), // parent_warning | admin_critical | absence_lock
     cycleGeneration: integer("cycle_generation").notNull(),
     leaveCount: integer("leave_count").notNull(),
     leaveDates: json<number[]>("leave_dates").notNull().default(sql`'[]'`),

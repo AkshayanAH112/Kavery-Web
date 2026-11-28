@@ -95,6 +95,15 @@ database page returning 500 until it is restarted.
   counter per exam year; `qrCode` is issued once and never changes. An attendance marker gets the
   `brief` student shape (no guardian phone or address). `/api/notifications` is the *leave alerts*
   API (KCSC's name); the push composer is `/api/push`.
+- **Two classes missed in a row lock a student** (`absenceRun()` in `attendance-recorder.ts`), on top
+  of the 2/3-leave alerts. The student's own marked classes in date order: consecutive leaves with no
+  present mark between them, each stamped (`attendance.leave_generation`) with the current
+  `cycleGeneration` — so reactivation and promotion start clean, and leaves from before the rule
+  (null) never count. A lock sets `isActive = false`, writes an `absence_lock` alert, and pushes to
+  staff and, in Tamil and English (`lib/keda/absence-lock-text.ts`), to the family's own phones. A
+  deactivated student is refused by the scanner lookup and `POST /api/attendance` until reactivated;
+  reactivating (`PATCH /api/students/[id]`) resolves the open lock alert. Correcting the mark that
+  caused a lock does not unlock — only reactivation does.
 - **Pages load KEDA screens from `components/keda/screens.tsx`, never from the screen file.** That
   file wraps each one in `next/dynamic` with `ssr: false`. Importing a screen directly pulls `xlsx`,
   `recharts` and `html5-qrcode` into the Worker bundle (it went from 1.9 MB to 2.4 MB gzipped, against

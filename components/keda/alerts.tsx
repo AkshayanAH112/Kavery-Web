@@ -14,6 +14,8 @@ import {
   Phone,
   Filter,
   UserX,
+  UserCheck,
+  Lock,
   Trash2,
 } from "lucide-react";
 import { ConfirmDialog, AlertModal } from "@/components/console/confirm-dialog";
@@ -21,7 +23,7 @@ import { useCurrentUser } from "@/components/console/current-user";
 import { searchText } from "@/lib/keda/bamini";
 
 type NotificationStatus = "pending" | "acknowledged" | "resolved" | "all";
-type NotificationType = "all" | "parent_warning" | "admin_critical";
+type NotificationType = "all" | "parent_warning" | "admin_critical" | "absence_lock";
 type StudentAction = { notificationId: string; studentId: string; studentName: string };
 
 const STATUS_TABS: { key: NotificationStatus; label: string }[] = [
@@ -35,7 +37,16 @@ const TYPE_FILTERS: { key: NotificationType; label: string; icon: typeof AlertTr
   { key: "all", label: "All Leaves", icon: Filter },
   { key: "parent_warning", label: "At 2 Leaves (Parent Warning)", icon: AlertTriangle },
   { key: "admin_critical", label: "At 3 Leaves (Admin Action)", icon: ShieldAlert },
+  { key: "absence_lock", label: "Missed 2 in a Row (Locked)", icon: Lock },
 ];
+
+/** What each alert type is called on its card, in the Excel sheet and in the empty state. */
+const TYPE_TEXT: Record<Exclude<NotificationType, "all">, { title: string; sheet: string; file: string; empty: string }> = {
+  parent_warning: { title: "Parent notification required", sheet: "Parent Notification Pending (2 Leaves)", file: "At_2_Leaves", empty: "2 leaves" },
+  admin_critical: { title: "Administrative action required", sheet: "Admin Action Required (3 Leaves)", file: "At_3_Leaves", empty: "3 leaves" },
+  absence_lock: { title: "Locked: missed classes in a row", sheet: "Locked (Missed Classes in a Row)", file: "Locked", empty: "students locked for missing classes in a row" },
+};
+const typeText = (type: string) => TYPE_TEXT[type as keyof typeof TYPE_TEXT] ?? TYPE_TEXT.parent_warning;
 
 export default function NotificationsPage() {
   return (
@@ -66,6 +77,7 @@ function NotificationsContent() {
   // so deactivating can close the alert in the same step.
   const [deactivateTarget, setDeactivateTarget] = useState<StudentAction | null>(null);
   const [removeTarget, setRemoveTarget] = useState<StudentAction | null>(null);
+  const [reactivateTarget, setReactivateTarget] = useState<StudentAction | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -117,6 +129,28 @@ function NotificationsContent() {
       fetchData(statusTab, typeFilter);
     } catch (e: any) {
       setDeactivateTarget(null);
+      setActionError(e.message);
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  // Unlocking a student who missed classes in a row. The server starts a fresh
+  // leave cycle and resolves this alert in the same request.
+  const reactivateStudent = async () => {
+    if (!reactivateTarget) return;
+    setActionBusy(true);
+    try {
+      const res = await fetch(`/api/students/${reactivateTarget.studentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: true }),
+      });
+      if (!res.ok) throw new Error((await res.json() as any).error ?? "Failed to reactivate");
+      setReactivateTarget(null);
+      fetchData(statusTab, typeFilter);
+    } catch (e: any) {
+      setReactivateTarget(null);
       setActionError(e.message);
     } finally {
       setActionBusy(false);
@@ -176,8 +210,7 @@ function NotificationsContent() {
       const guardianPhone = studentObj?.guardianPhone || "—";
       const batchName = studentObj?.batchId?.name || "—";
       const grade = studentObj?.grade ? `Grade ${studentObj.grade}` : "—";
-      const alertType =
-        n.type === "admin_critical" ? "Admin Action Required (3 Leaves)" : "Parent Notification Pending (2 Leaves)";
+      const alertType = typeText(n.type).sheet;
       const statusLabel = n.status ? n.status.charAt(0).toUpperCase() + n.status.slice(1) : "—";
       const dates = (n.leaveDates || []).map((d: string) => new Date(d).toLocaleDateString()).join(", ");
 
@@ -212,7 +245,7 @@ function NotificationsContent() {
     ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Leave Alerts");
-    const safeType = typeFilter === "all" ? "All_Leaves" : typeFilter === "parent_warning" ? "At_2_Leaves" : "At_3_Leaves";
+    const safeType = typeFilter === "all" ? "All_Leaves" : TYPE_TEXT[typeFilter].file;
     XLSX.writeFile(wb, `KEDA_Leave_Notifications_${safeType}_${statusTab}.xlsx`);
   };
 
@@ -221,7 +254,7 @@ function NotificationsContent() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Attendance Notifications</h1>
-          <p className="text-muted-foreground">Parent-warning and administrative alerts from the leave-tracking system.</p>
+          <p className="text-muted-foreground">Parent warnings, administrative alerts, and students locked for missing 2 classes in a row.</p>
         </div>
         <button
           onClick={downloadExcel}
@@ -244,7 +277,7 @@ function NotificationsContent() {
               onClick={() => setTypeFilter(f.key)}
               className={`flex cursor-pointer items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                 isActive
-                  ? f.key === "admin_critical"
+                  ? f.key === "admin_critical" || f.key === "absence_lock"
                     ? "bg-destructive text-destructive-foreground shadow-xs"
                     : f.key === "parent_warning"
                     ? "bg-warning text-warning-foreground shadow-xs"
@@ -298,7 +331,7 @@ function NotificationsContent() {
           <CheckCircle2 size={40} className="text-muted-foreground opacity-50" />
           <p className="text-muted-foreground">
             No {statusTab === "all" ? "" : statusTab} notifications
-            {typeFilter !== "all" ? ` for ${typeFilter === "parent_warning" ? "2 leaves" : "3 leaves"}` : ""}.
+            {typeFilter !== "all" ? ` for ${TYPE_TEXT[typeFilter].empty}` : ""}.
           </p>
         </div>
       ) : (
@@ -316,20 +349,16 @@ function NotificationsContent() {
                   <div className="flex items-start gap-3">
                     <span
                       className={`mt-0.5 rounded-lg p-2 ${
-                        n.type === "admin_critical"
+                        n.type === "admin_critical" || n.type === "absence_lock"
                           ? "bg-destructive/10 text-destructive"
                           : "bg-warning/15 text-warning"
                       }`}
                     >
-                      {n.type === "admin_critical" ? <ShieldAlert size={18} /> : <AlertTriangle size={18} />}
+                      {n.type === "absence_lock" ? <Lock size={18} /> : n.type === "admin_critical" ? <ShieldAlert size={18} /> : <AlertTriangle size={18} />}
                     </span>
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-foreground">
-                          {n.type === "admin_critical"
-                            ? "Administrative action required"
-                            : "Parent notification required"}
-                        </p>
+                        <p className="font-semibold text-foreground">{typeText(n.type).title}</p>
                         <span
                           className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider ${
                             n.status === "pending"
@@ -352,7 +381,7 @@ function NotificationsContent() {
                         </Link>
                         {studentObj?.isActive === false && (
                           <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">
-                            Deactivated
+                            {n.type === "absence_lock" ? "Locked" : "Deactivated"}
                           </span>
                         )}
                         {batchName && (
@@ -361,7 +390,11 @@ function NotificationsContent() {
                       </div>
 
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Reached <strong className="text-foreground">{n.leaveCount} leaves</strong>. Dates:{" "}
+                        {n.type === "absence_lock" ? (
+                          <>Missed <strong className="text-foreground">{n.leaveCount} classes in a row</strong> and was deactivated. Dates:{" "}</>
+                        ) : (
+                          <>Reached <strong className="text-foreground">{n.leaveCount} leaves</strong>. Dates:{" "}</>
+                        )}
                         {(n.leaveDates || []).map((d: string) => new Date(d).toLocaleDateString()).join(", ")}
                       </p>
 
@@ -399,6 +432,17 @@ function NotificationsContent() {
                         className="cursor-pointer rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                       >
                         Resolve
+                      </button>
+                    )}
+                    {/* A lock is lifted only by reactivating the student, which also resolves this alert. */}
+                    {n.type === "absence_lock" && studentObj?.isActive === false && (
+                      <button
+                        onClick={() =>
+                          setReactivateTarget({ notificationId: n._id, studentId: studentObj._id, studentName: n.studentName })
+                        }
+                        className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-success px-3 py-1.5 text-xs font-medium text-on-danger hover:bg-success/90 transition-colors"
+                      >
+                        <UserCheck size={13} aria-hidden /> Reactivate
                       </button>
                     )}
                     {/* Only the 3-leave alert asks for a decision about the student
@@ -442,6 +486,15 @@ function NotificationsContent() {
         title={`Deactivate ${deactivateTarget?.studentName ?? "this student"}?`}
         description="They leave every class register but keep their attendance and marks history. This alert is marked resolved. You can reactivate them from the student page."
         confirmLabel={actionBusy ? "Deactivating…" : "Deactivate"}
+      />
+
+      <ConfirmDialog
+        open={reactivateTarget !== null}
+        onClose={() => setReactivateTarget(null)}
+        onConfirm={reactivateStudent}
+        title={`Reactivate ${reactivateTarget?.studentName ?? "this student"}?`}
+        description="They go back on their class registers and can be scanned again. Their leave count starts again from zero, so earlier absences no longer count toward a lock. This alert is marked resolved."
+        confirmLabel={actionBusy ? "Reactivating…" : "Reactivate"}
       />
 
       <ConfirmDialog

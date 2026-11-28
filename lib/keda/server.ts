@@ -128,6 +128,9 @@ export async function getStudent(id: unknown) {
   return (await getDb().query.students.findFirst({ where: eq(S.id, id) })) ?? null;
 }
 
+/** What the scanner and the register say for a deactivated student (by hand, or locked after missing classes in a row). */
+export const inactiveError = (name: string) => `${name} is locked (deactivated). An administrator must reactivate them from Alerts or the student page before they can be marked.`;
+
 export async function getClass(id: unknown) {
   if (!isId(id)) return null;
   return (await getDb().query.classSessions.findFirst({ where: eq(C.id, id) })) ?? null;

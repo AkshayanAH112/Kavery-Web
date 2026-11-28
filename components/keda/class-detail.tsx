@@ -58,13 +58,18 @@ export default function ClassAttendancePage() {
     }));
 
     try {
-      await fetch("/api/attendance", {
+      const res = await fetch("/api/attendance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ studentId, classId, present: isPresent }),
       });
+      const d = await res.json() as any;
+      if (!res.ok) throw new Error(d.error);
+      // A second absence in a row locks the student; reload so the row shows it.
+      if (d.locked) fetchClassData();
     } catch (e: any) {
       console.error("Failed to update attendance", e);
+      if (e?.message) setMarkError(e.message);
       fetchClassData(); // Revert on failure
     }
   };
@@ -104,6 +109,7 @@ export default function ClassAttendancePage() {
     setEndDone(0);
     let done = 0;
     let warnings = 0;
+    let locked = 0;
     try {
       // The server handles a few students per request and says how many remain;
       // the class is only ended by the last request.
@@ -113,6 +119,7 @@ export default function ClassAttendancePage() {
         if (!res.ok) throw new Error(d.error);
         done += d.markedAbsentCount;
         warnings += d.warningsRaised;
+        locked += d.lockedCount ?? 0;
         setEndDone(done);
         if (d.remaining === 0) break;
       }
@@ -122,7 +129,10 @@ export default function ClassAttendancePage() {
           : `Class ended. ${done} student${done === 1 ? "" : "s"} marked absent` +
             (warnings > 0
               ? `, raising ${warnings} leave warning${warnings === 1 ? "" : "s"}.`
-              : ".")
+              : ".") +
+            (locked > 0
+              ? ` ${locked} student${locked === 1 ? " has" : "s have"} now missed 2 classes in a row and ${locked === 1 ? "is" : "are"} locked until an administrator reactivates them (see Alerts).`
+              : "")
       );
     } catch (e: any) {
       console.error("Failed to end the class", e);
@@ -283,14 +293,22 @@ export default function ClassAttendancePage() {
             <tbody className="divide-y divide-border">
               {filteredRoster.map((r: any) => (
                 <tr key={r.student._id} className="transition-colors duration-200 hover:bg-muted">
-                  <td className="px-6 py-2.5 font-semibold text-foreground">{r.student.name}</td>
+                  <td className="px-6 py-2.5 font-semibold text-foreground">
+                    {r.student.name}
+                    {r.student.isActive === false && (
+                      <span className="ml-2 rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-bold text-destructive">
+                        Locked
+                      </span>
+                    )}
+                  </td>
                   <td className="px-6 py-2.5 font-mono text-xs text-muted-foreground">
                     {r.student.qrCode}
                   </td>
                   <td className="px-6 py-2.5 text-center">
                     <button
                       onClick={() => toggleAttendance(r.student._id, r.isPresent)}
-                      disabled={isMarkingAll}
+                      disabled={isMarkingAll || r.student.isActive === false}
+                      title={r.student.isActive === false ? "Locked: reactivate this student before marking them" : undefined}
                       aria-pressed={r.isPresent}
                       className={`inline-flex cursor-pointer items-center gap-2 rounded-lg px-4 py-2 font-bold transition-all duration-200 disabled:cursor-default disabled:opacity-60 ${
                         r.isPresent
@@ -356,7 +374,7 @@ export default function ClassAttendancePage() {
       <AlertModal
         open={markError !== null}
         onClose={() => setMarkError(null)}
-        title="Not everyone was marked"
+        title="That wasn't saved"
         description={markError ?? undefined}
         tone="danger"
       />

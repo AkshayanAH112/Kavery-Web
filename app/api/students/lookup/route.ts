@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { authorize } from "@/lib/auth/guard";
 import { can } from "@/lib/auth/roles";
 import { getDb, schema } from "@/lib/db";
-import { attendanceDoc, getBatch, getClass, studentDoc } from "@/lib/keda/server";
+import { attendanceDoc, getBatch, getClass, inactiveError, studentDoc } from "@/lib/keda/server";
 
 const { students: S, attendance: A } = schema;
 
@@ -30,6 +30,7 @@ export async function GET(request: Request) {
 
   const session = await getClass(classId);
   if (!session) return Response.json({ error: "Class not found" }, { status: 404 });
+  if (!row.isActive) return Response.json({ error: inactiveError(row.name), locked: true }, { status: 409 });
   if (row.grade !== session.grade) return Response.json({ error: `Warning: Student is Grade ${row.grade}, Class is Grade ${session.grade}` }, { status: 400 });
   if (row.registrationDate && session.date < row.registrationDate) {
     return Response.json({ error: `Warning: Student registered on ${row.registrationDate.toDateString()}, after this class (${session.date.toDateString()})` }, { status: 400 });

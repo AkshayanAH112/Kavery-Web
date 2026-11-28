@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { authorize } from "@/lib/auth/guard";
 import { deletePrivateFiles } from "@/lib/private-files";
 import { can } from "@/lib/auth/roles";
@@ -115,6 +115,13 @@ export async function PATCH(request: Request, { params }: RouteContext<"/api/stu
   }
 
   const [student] = Object.keys(update).length ? await getDb().update(S).set(update).where(eq(S.id, existing.id)).returning() : [existing];
+  // Reactivating is the answer to a "missed classes in a row" lock, so its open alert closes with it.
+  if (data.isActive === true && existing.isActive === false) {
+    await getDb()
+      .update(L)
+      .set({ status: "resolved" })
+      .where(and(eq(L.studentId, existing.id), eq(L.type, "absence_lock"), ne(L.status, "resolved")));
+  }
   return Response.json({ student: studentDoc(student) });
 }
 

@@ -31,12 +31,14 @@ export async function GET(_request: Request, { params }: RouteContext<"/api/clas
 
 /**
  * Students handled by one request. The free Workers plan allows 50 D1 queries
- * per request: this route uses 5 of its own, and a student reaching a third leave
- * costs 8 in recordAttendance() plus 3 and one fetch per staff device for the
- * push. Staying well under matters: a request cut off between the attendance row
- * and the counter would leave a leave uncounted, and a retry would not see it.
+ * per request: this route uses 5 of its own, and the costliest student — a third
+ * leave that is also a second in a row — costs about 11 in recordAttendance(), 3
+ * and one fetch per staff device for the staff push, and 3 and one fetch per family
+ * device for the family push. Staying well under matters: a request cut off between
+ * the attendance row and the counter would leave a leave uncounted, and a retry
+ * would not see it.
  */
-const BATCH_SIZE = 3;
+const BATCH_SIZE = 2;
 
 /**
  * Closes the register. The scanner only ever marks students present, so a
@@ -56,11 +58,11 @@ export async function POST(_request: Request, { params }: RouteContext<"/api/cla
   const batch = unmarked.slice(0, BATCH_SIZE);
   const remaining = unmarked.length - batch.length;
 
-  const markedAbsent: { name: string; leaveCycle: number }[] = [];
+  const markedAbsent: { name: string; leaveCycle: number; locked: boolean }[] = [];
   // One at a time, through the single attendance writer, so each leave counter and alert is exact.
   for (const student of batch) {
-    const { student: updated } = await recordAttendance({ studentId: student.id, classId: session.id, present: false, markedBy: auth.session.userId });
-    markedAbsent.push({ name: student.name, leaveCycle: updated?.currentLeaveCycle ?? 0 });
+    const { student: updated, locked } = await recordAttendance({ studentId: student.id, classId: session.id, present: false, markedBy: auth.session.userId });
+    markedAbsent.push({ name: student.name, leaveCycle: updated?.currentLeaveCycle ?? 0, locked });
   }
 
   let endedAt: Date | null = null;
@@ -75,6 +77,7 @@ export async function POST(_request: Request, { params }: RouteContext<"/api/cla
     markedAbsentCount: markedAbsent.length,
     markedAbsent,
     warningsRaised: markedAbsent.filter((m) => m.leaveCycle === 2 || m.leaveCycle === 3).length,
+    lockedCount: markedAbsent.filter((m) => m.locked).length,
   });
 }
 

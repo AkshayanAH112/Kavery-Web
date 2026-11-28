@@ -1,0 +1,1 @@
+ALTER TABLE `attendance` ADD `leave_generation` integer;

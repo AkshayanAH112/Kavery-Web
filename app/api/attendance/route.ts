@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { authorize } from "@/lib/auth/guard";
 import { getDb, schema } from "@/lib/db";
 import { recordAttendance } from "@/lib/keda/attendance-recorder";
-import { attendanceDoc, getClass, getStudent, readBody, text } from "@/lib/keda/server";
+import { attendanceDoc, getClass, getStudent, inactiveError, readBody, text } from "@/lib/keda/server";
 
 const A = schema.attendance;
 
@@ -17,6 +17,9 @@ export async function POST(request: Request) {
   const session = await getClass(data?.classId);
   if (!session) return Response.json({ error: "Class not found" }, { status: 404 });
 
+  // A deactivated student — by hand, or locked after missing classes in a row — is
+  // not marked until an administrator reactivates them.
+  if (!student.isActive) return Response.json({ error: inactiveError(student.name) }, { status: 409 });
   if (student.grade !== session.grade) return Response.json({ error: `Student is Grade ${student.grade}, class is Grade ${session.grade}` }, { status: 400 });
   if (student.registrationDate && session.date < student.registrationDate) {
     return Response.json(
@@ -25,7 +28,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { attendance, student: updated } = await recordAttendance({
+  const { attendance, student: updated, locked } = await recordAttendance({
     studentId: student.id,
     classId: session.id,
     present: data?.present !== false,
@@ -42,5 +45,6 @@ export async function POST(request: Request) {
     recordedCount,
     totalLeaves: updated?.totalLeaves ?? student.totalLeaves,
     currentLeaveCycle: updated?.currentLeaveCycle ?? student.currentLeaveCycle,
+    locked,
   });
 }
